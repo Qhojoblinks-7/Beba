@@ -1,0 +1,1 @@
+// Formatter for GH₵ (Cedis)

@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-*_ol%n$!4d(8ahfr%d2-q%m*#vga_^x9(l1-^wqu%t4kk@s9kz
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*'] if DEBUG else []
 
 
 # Application definition
@@ -142,6 +142,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8081",
     "http://10.0.2.2:8000",  # Android emulator
     "http://127.0.0.1:19000",
+    "http://10.39.179.107:8000"
 ]
 CORS_ALLOW_CREDENTIALS = True
 
