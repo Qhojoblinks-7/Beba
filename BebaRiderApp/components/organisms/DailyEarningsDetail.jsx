@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ChevronLeft, Car } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BebaText from '../atoms/BebaText';
-import EarningsChart from '../organisms/EarningsChart';
-import { Palette, Spacing, Typography } from '../../constants/theme';
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { ChevronLeft, Car } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import BebaText from "../atoms/BebaText";
+import EarningsChart from "../organisms/EarningsChart";
+import { Palette } from "../../constants/theme";
 
-const DailyEarningsDetail = ({ date = "April 24", totalEarnings = "358.78", tripCount = "10", fees, onBack, navigation }) => {
+const DailyEarningsDetail = ({
+  date = "April 24",
+  totalEarnings = "358.78",
+  tripCount = "10",
+  fees,
+  onBack,
+  navigation,
+}) => {
   const insets = useSafeAreaInsets();
 
   // 1. DUMMY DATA FOR TRIPS
@@ -14,47 +21,47 @@ const DailyEarningsDetail = ({ date = "April 24", totalEarnings = "358.78", trip
     {
       time: "20:01",
       location: "Ablekuma West, Akoa Ndor Road",
-      amount: "22.35"
+      amount: "22.35",
     },
     {
       time: "19:45",
       location: "Kaale Street, 1, Asafoatse Omani Street",
-      amount: "17.15"
+      amount: "17.15",
     },
     {
       time: "18:20",
       location: "Tudu Road, Accra Central",
-      amount: "45.00"
+      amount: "45.00",
     },
     {
       time: "17:10",
       location: "Dzorwulu, Blohum Street",
-      amount: "31.20"
+      amount: "31.20",
     },
     {
       time: "15:45",
       location: "Makola Market, Kinbu Road",
-      amount: "28.50"
+      amount: "28.50",
     },
     {
       time: "14:30",
       location: "Korle Bu, Guggisberg Avenue",
-      amount: "19.00"
-    }
+      amount: "19.00",
+    },
   ];
 
   const rawChartData = [
-    { day: '20', label: 'Apr', value: 223.83 },
-    { day: '21', label: 'Apr', value: 100.78 },
-    { day: '22', label: 'Apr', value: 237.03 },
-    { day: '23', label: 'Apr', value: 127.18 },
-    { day: '24', label: 'Apr', value: 358.78, active: true },
-    { day: '25', label: 'Apr', value: 125.53 },
-    { day: '26', label: 'Apr', value: 233.85 },
+    { day: "20", label: "Apr", value: 223.83 },
+    { day: "21", label: "Apr", value: 100.78 },
+    { day: "22", label: "Apr", value: 237.03 },
+    { day: "23", label: "Apr", value: 127.18 },
+    { day: "24", label: "Apr", value: 358.78, active: true },
+    { day: "25", label: "Apr", value: 125.53 },
+    { day: "26", label: "Apr", value: 233.85 },
   ];
 
   const [chartData, setChartData] = useState(
-    rawChartData.map(item => ({ x: item.day, y: item.value }))
+    rawChartData.map((item) => ({ x: item.day, y: item.value })),
   );
 
   return (
@@ -63,48 +70,86 @@ const DailyEarningsDetail = ({ date = "April 24", totalEarnings = "358.78", trip
         <TouchableOpacity onPress={onBack}>
           <ChevronLeft size={28} color={Palette.black} />
         </TouchableOpacity>
-        
+
         <View style={styles.tabContainer}>
-          <View style={styles.activeTab}><BebaText category="body4" style={styles.bold}>Day</BebaText></View>
-          <View style={styles.tab}><BebaText category="body4" color={Palette.gray500}>Week</BebaText></View>
-          <View style={styles.tab}><BebaText category="body4" color={Palette.gray500}>Month</BebaText></View>
+          <View style={styles.activeTab}>
+            <BebaText category="body4" style={styles.bold}>
+              Day
+            </BebaText>
+          </View>
+          <View style={styles.tab}>
+            <BebaText category="body4" color={Palette.gray500}>
+              Week
+            </BebaText>
+          </View>
+          <View style={styles.tab}>
+            <BebaText category="body4" color={Palette.gray500}>
+              Month
+            </BebaText>
+          </View>
         </View>
-        <View style={{ width: 40 }} /> 
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.summarySection}>
           <BebaText style={styles.totalAmount}>GHS {totalEarnings}</BebaText>
-          <BebaText category="body3" color={Palette.gray500}>{tripCount} trips</BebaText>
+          <BebaText category="body3" color={Palette.gray500}>
+            {tripCount} trips
+          </BebaText>
         </View>
 
-        <EarningsChart 
-          data={chartData} 
-          onBarPress={(item, index) => {
-            const updated = rawChartData.map((d, i) => ({
-              x: d.day,
-              y: d.value,
-              active: i === index
-            }));
-            setChartData(updated);
-          }}
-        />
+        <View style={styles.chartContainer}>
+          <EarningsChart
+            data={chartData}
+            onBarPress={(item, index) => {
+              const updated = rawChartData.map((d, i) => ({
+                x: d.day,
+                y: d.value,
+                active: i === index,
+              }));
+              setChartData(updated);
+            }}
+          />
+        </View>
 
         <View style={styles.badgeContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgeRow}>
-            <View style={styles.badge}><BebaText category="body4">Cash GHS {fees?.cash ?? "447"}</BebaText></View>
-            <View style={styles.badge}><BebaText category="body4">Service fees -GHS {fees?.service ?? "65.88"}</BebaText></View>
-            <View style={styles.badge}><BebaText category="body4">Partner fees -GHS {fees?.partner ?? "22.35"}</BebaText></View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.badgeRow}
+          >
+            <View style={styles.badge}>
+              <BebaText category="body4">
+                Cash GHS {fees?.cash ?? "447"}
+              </BebaText>
+            </View>
+            <View style={styles.badge}>
+              <BebaText category="body4">
+                Service fees -GHS {fees?.service ?? "65.88"}
+              </BebaText>
+            </View>
+            <View style={styles.badge}>
+              <BebaText category="body4">
+                Partner fees -GHS {fees?.partner ?? "22.35"}
+              </BebaText>
+            </View>
           </ScrollView>
         </View>
 
         <View style={styles.listSection}>
-          <BebaText category="h3" style={styles.dateLabel}>{date}</BebaText>
+          <BebaText category="h3" style={styles.dateLabel}>
+            {date}
+          </BebaText>
           <View style={styles.divider} />
-          
+
           {/* Rendering the Dummy Trips */}
           {dummyTrips.map((item, index) => (
-            <TouchableOpacity key={index} style={styles.tripRow} onPress={() => navigation.navigate('TripDetails')}>
+            <TouchableOpacity
+              key={index}
+              style={styles.tripRow}
+              onPress={() => navigation.navigate("TripDetails")}
+            >
               <View style={styles.iconContainer}>
                 <Car size={24} color={Palette.black} />
               </View>
@@ -113,10 +158,10 @@ const DailyEarningsDetail = ({ date = "April 24", totalEarnings = "358.78", trip
                 <BebaText category="h4" style={styles.tripTime}>
                   {item.time}
                 </BebaText>
-                <BebaText 
-                  category="body4" 
-                  color={Palette.gray500} 
-                  numberOfLines={2} 
+                <BebaText
+                  category="body4"
+                  color={Palette.gray500}
+                  numberOfLines={2}
                   style={styles.locationText}
                 >
                   {item.location}
@@ -139,88 +184,60 @@ const DailyEarningsDetail = ({ date = "April 24", totalEarnings = "358.78", trip
 const styles = StyleSheet.create({
   mainWrapper: { flex: 1, backgroundColor: Palette.background },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.padding,
-    paddingVertical: Spacing.padding,
-    backgroundColor: Palette.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Palette.gray200,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: Palette.gray100,
-    borderRadius: Spacing.borderRadius,
-    padding: Spacing.row / 2,
-    width: '65%',
+    flexDirection: "row",
+    backgroundColor: "#F2F2F2",
+    borderRadius: 12,
+    padding: 3,
+    width: "65%",
   },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
+  tab: { flex: 1, alignItems: "center", paddingVertical: 6 },
   activeTab: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: 6,
     backgroundColor: Palette.background,
-    borderRadius: 8,
+    borderRadius: 9,
     elevation: 2,
   },
-  bold: { fontWeight: '600' },
-  summarySection: {
-    alignItems: 'center',
-    marginTop: Spacing.padding,
-  },
-  totalAmount: {
-    ...Typography.h1,
-    fontSize: 40,
-    fontWeight: '700',
-    color: Palette.textPrimary,
-  },
-  badgeContainer: {
-    marginBottom: Spacing.padding,
-  },
-  badgeRow: {
-    paddingHorizontal: Spacing.padding,
-    gap: Spacing.row,
-  },
+  bold: { fontWeight: "600" },
+  summarySection: { alignItems: "center", marginTop: 20 },
+  totalAmount: { fontSize: 40, fontWeight: "700" },
+  chartContainer: { marginVertical: 25 },
+  badgeContainer: { marginBottom: 20 },
+  badgeRow: { paddingHorizontal: 16, gap: 8 },
   badge: {
-    backgroundColor: Palette.gray100,
-    paddingHorizontal: Spacing.padding,
-    paddingVertical: Spacing.row / 2,
+    backgroundColor: "#F2F2F2",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 16,
   },
   listSection: {
-    marginTop: Spacing.padding,
-    paddingHorizontal: Spacing.padding,
-    borderTopWidth: 1,
-    borderTopColor: Palette.gray100,
-    paddingTop: Spacing.padding,
+    marginTop: 10,
+    paddingHorizontal: 16,
+    borderTopWidth: 8,
+    borderTopColor: "#F9F9F9",
+    paddingTop: 20,
   },
-  dateLabel: {
-    ...Typography.h3,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: Spacing.padding,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: Palette.gray200,
-    marginBottom: Spacing.padding,
-  },
+  dateLabel: { fontSize: 18, fontWeight: "700", marginBottom: 15 },
+  divider: { height: 1, backgroundColor: "#EEEEEE", marginBottom: 10 },
   tripRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: Spacing.padding,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 18,
     borderBottomWidth: 1,
-    borderBottomColor: Palette.gray100,
-    gap: Spacing.padding,
+    borderBottomColor: "#F5F5F5",
+    gap: 12,
   },
   iconContainer: {
     width: 32,
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 2,
   },
   tripInfo: {
@@ -228,23 +245,19 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tripTime: {
-    ...Typography.h4,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   locationText: {
-    ...Typography.body4,
     fontSize: 14,
     lineHeight: 18,
   },
   amountContainer: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   tripAmount: {
-    ...Typography.h4,
     fontSize: 16,
-    fontWeight: '600',
-    color: Palette.textPrimary,
+    fontWeight: "600",
   },
 });
 
