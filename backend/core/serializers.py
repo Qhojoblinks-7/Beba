@@ -89,6 +89,30 @@ class LocationLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid longitude range.")
         return value
 
+class TripHistorySerializer(serializers.ModelSerializer):
+    """Serializer for rider trip history with time, location, and amount."""
+    time = serializers.SerializerMethodField()
+    location = serializers.SerializerMethodField()
+    amount = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Order
+        fields = ['time', 'location', 'amount']
+    
+    def get_time(self, obj):
+        # Use completion time (updated_at) when order was marked delivered
+        return obj.updated_at.strftime('%H:%M')
+    
+    def get_location(self, obj):
+        # Return pickup_address or fallback
+        return obj.pickup_address if obj.pickup_address else "Pickup location"
+    
+    def get_amount(self, obj):
+        # Return total_fare from trip_metrics; fallback to base_fare if available
+        if hasattr(obj, 'trip_metrics') and obj.trip_metrics:
+            return obj.trip_metrics.total_fare
+        return None
+
 class LoginSerializer(serializers.Serializer):
     """Refined Login Serializer using standard authenticate() methods."""
     phone_number = serializers.CharField(required=True)

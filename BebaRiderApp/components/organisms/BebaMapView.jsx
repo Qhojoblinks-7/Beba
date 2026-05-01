@@ -46,7 +46,7 @@ const BebaMapView = ({
     if (cameraRef.current?.setStop) {
       cameraRef.current.setStop({
         zoomLevel: newZoom,
-        animationDuration: 300,
+        duration: 300,
       });
     }
   };
@@ -106,48 +106,47 @@ const BebaMapView = ({
           </ShapeSource>
         )}
 
-         {/* Map Overlays for Pickups */}
-         {newPickups.map((pickup) => (
-           <MarkerView
-             key={`pickup-${pickup.id}`}
-             id={`pickup-${pickup.id}`}
-             coordinate={[pickup.longitude, pickup.latitude]}
-           >
-             <View style={styles.tooltipWrapper}>
-               <View style={[styles.pillContainer, { backgroundColor: Palette.primary }]}>
-                 <BebaText category="body4" color={Palette.white} style={styles.pillText}>
-                   Pickup • GHS {pickup.price}
-                 </BebaText>
-               </View>
-               <View style={[styles.pillArrow, { borderTopColor: Palette.primary }]} />
-             </View>
-           </MarkerView>
-         ))}
+        {/* Map Overlays for Pickups - guard against invalid data */}
+        {Array.isArray(newPickups) && newPickups.map((pickup) => (
+          <MarkerView
+            key={`pickup-${pickup.id}`}
+            id={`pickup-${pickup.id}`}
+            coordinate={[pickup.longitude, pickup.latitude]}
+          >
+            <View style={styles.tooltipWrapper}>
+              <View style={[styles.pillContainer, { backgroundColor: Palette.primary }]}>
+                <BebaText category="body4" color={Palette.white} style={styles.pillText}>
+                  Pickup • GHS {pickup.price}
+                </BebaText>
+              </View>
+              <View style={[styles.pillArrow, { borderTopColor: Palette.primary }]} />
+            </View>
+          </MarkerView>
+        ))}
 
-         {/* Map Overlays for Drop-offs */}
-         {activeDropoffs.map((dropoff) => (
-           <MarkerView
-             key={`dropoff-${dropoff.id}`}
-             id={`dropoff-${dropoff.id}`}
-             coordinate={[dropoff.longitude, dropoff.latitude]}
-           >
-             <View style={styles.tooltipWrapper}>
-               <View style={[styles.pillContainer, { backgroundColor: Palette.secondary }]}>
-                 <BebaText category="body4" color={Palette.white} style={styles.pillText}>
-                   Drop-off
-                 </BebaText>
-               </View>
-               <View style={[styles.pillArrow, { borderTopColor: Palette.secondary }]} />
-             </View>
-           </MarkerView>
-         ))}
+        {/* Map Overlays for Drop-offs - guard against invalid data */}
+        {Array.isArray(activeDropoffs) && activeDropoffs.map((dropoff) => (
+          <MarkerView
+            key={`dropoff-${dropoff.id}`}
+            id={`dropoff-${dropoff.id}`}
+            coordinate={[dropoff.longitude, dropoff.latitude]}
+          >
+            <View style={styles.tooltipWrapper}>
+              <View style={[styles.pillContainer, { backgroundColor: Palette.secondary }]}>
+                <BebaText category="body4" color={Palette.white} style={styles.pillText}>
+                  Drop-off
+                </BebaText>
+              </View>
+              <View style={[styles.pillArrow, { borderTopColor: Palette.secondary }]} />
+            </View>
+          </MarkerView>
+        ))}
 
         <UserLocation
           visible={true}
           animated={true}
           renderMode="native"
           onLocationUpdate={(location) => {
-            // MapLibre returns: { coordinate: [lon, lat], ... }
             const [longitude, latitude] = location.coordinate;
             setCurrentLocation({ longitude, latitude });
           }}
@@ -166,8 +165,8 @@ const BebaMapView = ({
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity 
-          style={[styles.actionButton, showTrafficMode && { backgroundColor: Palette.primary }]} 
+        <TouchableOpacity
+          style={[styles.actionButton, showTrafficMode && { backgroundColor: Palette.primary }]}
           onPress={() => setShowTrafficMode(!showTrafficMode)}
         >
           <Layers size={22} color={showTrafficMode ? Palette.white : Palette.textPrimary} />

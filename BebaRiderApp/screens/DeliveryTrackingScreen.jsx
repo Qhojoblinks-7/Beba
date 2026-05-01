@@ -16,10 +16,12 @@ import {
   Truck,
   Wallet,
   Navigation,
+  Car
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNearbyOrders, useAcceptOrder } from "../query/hooks";
+import { useFocusEffect } from "@react-navigation/native";
+import { useNearbyOrders, useAcceptOrder, useEarnings, useActiveOrder } from "../query/hooks";
 import useAppStore from "../store/useAppStore";
 import { RIDER_STATUS } from "../constants/orderConstants";
 import { useLocation } from "../hooks/useLocation";
@@ -28,22 +30,36 @@ import { Palette } from "../constants/theme";
 
 const DeliveryTrackingScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { location } = useLocation();
+  const { location, startLocationTracking, stopLocationTracking } = useLocation();
   const riderStatus = useAppStore((state) => state.riderStatus);
   const setRiderStatus = useAppStore((state) => state.setRiderStatus);
   const user = useAppStore((state) => state.user);
 
-  const {
-    data: availableOrders = [],
-    isLoading: isLoadingOrders,
-    refetch: refetchNearbyOrders,
-  } = useNearbyOrders(
+  // Start location tracking when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      startLocationTracking();
+      return () => stopLocationTracking();
+    }, [])
+  );
+
+  const { data: availableOrders = [], isLoading: isLoadingOrders, refetch: refetchNearbyOrders } = useNearbyOrders(
     location?.latitude,
     location?.longitude,
     riderStatus === RIDER_STATUS.ONLINE && !!location,
   );
 
+  const { data: activeOrder } = useActiveOrder();
+  const { data: earnings } = useEarnings();
+
   const acceptOrderMutation = useAcceptOrder();
+
+  // Ensure availableOrders is always an array (handle paginated response shape)
+  const ordersList = Array.isArray(availableOrders) ? availableOrders : (availableOrders?.results || []);
+
+  // Determine which order to show on the "Next Delivery" card (active order has priority)
+  const displayOrder = activeOrder || ordersList[0];
+  const isActive = !!activeOrder;
 
   const handleAcceptOrder = useCallback(
     async (orderId) => {
@@ -100,19 +116,19 @@ const DeliveryTrackingScreen = ({ navigation }) => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.bentoCard}>
-            <View style={styles.iconContainer}>
-              <Wallet size={18} color={Palette.primary} />
-            </View>
-            <View style={styles.cardTextContainer}>
-              <BebaText category="h5" color={Palette.textPrimary}>
-                Earnings
-              </BebaText>
-              <BebaText category="body4" color={Palette.textSecondary}>
-                GHS 450
-              </BebaText>
-            </View>
-          </TouchableOpacity>
+           <TouchableOpacity style={styles.bentoCard}>
+             <View style={styles.iconContainer}>
+               <Wallet size={18} color={Palette.primary} />
+             </View>
+             <View style={styles.cardTextContainer}>
+               <BebaText category="h5" color={Palette.textPrimary}>
+                 Earnings
+               </BebaText>
+               <BebaText category="body4" color={Palette.textSecondary}>
+                 {earnings?.today ? `GHS ${earnings.today.toFixed(2)}` : 'GHS 0.00'}
+               </BebaText>
+             </View>
+           </TouchableOpacity>
 
           <View style={styles.bentoCard}>
             <View style={styles.iconContainer}>
@@ -141,70 +157,72 @@ const DeliveryTrackingScreen = ({ navigation }) => {
                 Trips
               </BebaText>
               <BebaText category="body4" color={Palette.textSecondary}>
-                12 Today
+                {earnings?.completedTrips || 0} Today
               </BebaText>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Next Delivery Card with True Middle Blend */}
-        <View style={styles.nextDeliveryCard}>
-          <View style={styles.nextDeliveryContent}>
-            <BebaText category="body4" color="rgba(255,255,255,0.7)">
-              Next Delivery
-            </BebaText>
-            <BebaText
-              category="h2"
-              color={Palette.white}
-              style={styles.orderId}
-            >
-              #BEBA-1024
-            </BebaText>
-
-            <View style={styles.locationRow}>
-              <MapPin size={14} color="rgba(255,255,255,0.7)" />
+        {/* Next Delivery Card with Dynamic Order (active order has priority) */}
+        {displayOrder ? (
+          <View style={styles.nextDeliveryCard}>
+            <View style={styles.nextDeliveryContent}>
+              <BebaText category="body4" color="rgba(255,255,255,0.7)">
+                {isActive ? 'Active Delivery' : 'Next Delivery'}
+              </BebaText>
               <BebaText
-                category="body4"
+                category="h2"
                 color={Palette.white}
-                numberOfLines={1}
+                style={styles.orderId}
               >
-                East Legon, Accra
+                #BEBA-{displayOrder.id}
               </BebaText>
+
+              <View style={styles.locationRow}>
+                <MapPin size={14} color="rgba(255,255,255,0.7)" />
+                <BebaText
+                  category="body4"
+                  color={Palette.white}
+                  numberOfLines={1}
+                >
+                  {displayOrder.pickup_address || "Pickup location"}
+                </BebaText>
+              </View>
+
+              <View style={styles.statusBadge}>
+                <View style={styles.statusDot} />
+                <BebaText category="body4" color={Palette.white}>
+                  {displayOrder.status.replace('_', ' ')}
+                </BebaText>
+              </View>
             </View>
 
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <BebaText category="body4" color={Palette.white}>
-                Pending
-              </BebaText>
+            <View style={styles.mapWrapper}>
+              <Image
+                source={{
+                  uri: `https://staticmap.openstreetmap.de/staticmap.php?center=${displayOrder.pickup_latitude},${displayOrder.pickup_longitude}&zoom=13&size=400x400&maptype=mapnik&markers=${displayOrder.pickup_latitude},${displayOrder.pickup_longitude},red-pushpin`,
+                }}
+                style={styles.mapImage}
+                resizeMode="cover"
+              />
+              {/* Horizontal blend overlay */}
+              <LinearGradient
+                colors={[Palette.secondary, Palette.secondary, "transparent"]}
+                start={{ x: 0, y: 0.5 }}
+                end={{ x: 1, y: 0.5 }}
+                locations={[0, 0.15, 0.8]} // Solid color for a bit, then fades out
+                style={styles.blendGradient}
+              />
             </View>
           </View>
-
-          <View style={styles.mapWrapper}>
-            <Image
-              source={{
-                uri: "https://api.mapbox.com/styles/v1/mapbox/dark-v10/static/-0.1862,5.6037,13,0/400x400?access_token=YOUR_MAP_BOX_TOKEN",
-              }}
-              style={styles.mapImage}
-              resizeMode="cover"
-            />
-            {/* Horizontal blend overlay */}
-            <LinearGradient
-              colors={[Palette.secondary, Palette.secondary, "transparent"]}
-              start={{ x: 0, y: 0.5 }}
-              end={{ x: 1, y: 0.5 }}
-              locations={[0, 0.15, 0.8]} // Solid color for a bit, then fades out
-              style={styles.blendGradient}
-            />
-          </View>
-        </View>
+        ) : null}
 
         <View style={styles.sectionHeader}>
           <BebaText category="h3" color={Palette.textPrimary}>
             New Requests
           </BebaText>
           <BebaText category="body3" color={Palette.textSecondary}>
-            {availableOrders.length} nearby
+            {ordersList.length} nearby
           </BebaText>
         </View>
 
@@ -213,57 +231,57 @@ const DeliveryTrackingScreen = ({ navigation }) => {
             <Loader size={24} color={Palette.primary} />
           </View>
         ) : (
-          availableOrders.map((order) => (
+          ordersList.map((order) => (
             <TouchableOpacity
               key={order.id}
               style={styles.requestCard}
               onPress={() => handleAcceptOrder(order.id)}
             >
-              <View style={styles.requestHeader}>
-                <BebaText category="h2" color={Palette.white}>
-                  #ORD-{order.id.slice(-6).toUpperCase()}
-                </BebaText>
-                <View style={styles.whiteBadge}>
-                  <BebaText category="body4" color={Palette.primary}>
-                    GHS {order.price || "0.00"}
-                  </BebaText>
-                </View>
-              </View>
+               <View style={styles.requestHeader}>
+                 <BebaText category="h2" color={Palette.white}>
+                   #ORD-{order.id.toString().slice(-6).toUpperCase()}
+                 </BebaText>
+                 <View style={styles.whiteBadge}>
+                   <BebaText category="body4" color={Palette.primary}>
+                     GHS {order.trip_metrics?.total_fare || "0.00"}
+                   </BebaText>
+                 </View>
+               </View>
 
-              <View style={styles.routeRow}>
-                <View style={styles.flexOne}>
-                  <BebaText category="body4" color="rgba(255,255,255,0.6)">
-                    Pickup
-                  </BebaText>
-                  <BebaText
-                    category="body3"
-                    color={Palette.white}
-                    numberOfLines={1}
-                  >
-                    {order.pickup_location || "Point A"}
-                  </BebaText>
-                </View>
+               <View style={styles.routeRow}>
+                 <View style={styles.flexOne}>
+                   <BebaText category="body4" color="rgba(255,255,255,0.6)">
+                     Pickup
+                   </BebaText>
+                   <BebaText
+                     category="body3"
+                     color={Palette.white}
+                     numberOfLines={1}
+                   >
+                     {order.pickup_address || "Pickup location"}
+                   </BebaText>
+                 </View>
 
-                <View style={styles.arrowContainer}>
-                  <ChevronsRight color="rgba(255,255,255,0.4)" size={28} />
-                </View>
+                 <View style={styles.arrowContainer}>
+                   <ChevronsRight color="rgba(255,255,255,0.4)" size={28} />
+                 </View>
 
-                <View style={[styles.flexOne, { alignItems: "flex-end" }]}>
-                  <BebaText category="body4" color="rgba(255,255,255,0.6)">
-                    Dropoff
-                  </BebaText>
-                  <BebaText
-                    category="body3"
-                    color={Palette.white}
-                    numberOfLines={1}
-                  >
-                    {order.dropoff_location || "Point B"}
-                  </BebaText>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))
-        )}
+                 <View style={[styles.flexOne, { alignItems: "flex-end" }]}>
+                   <BebaText category="body4" color="rgba(255,255,255,0.6)">
+                     Dropoff
+                   </BebaText>
+                   <BebaText
+                     category="body3"
+                     color={Palette.white}
+                     numberOfLines={1}
+                   >
+                     {order.dropoff_address || "Dropoff location"}
+                   </BebaText>
+                 </View>
+               </View>
+             </TouchableOpacity>
+           ))
+         )}
       </ScrollView>
     </View>
   );

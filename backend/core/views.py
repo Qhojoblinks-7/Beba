@@ -1,6 +1,6 @@
 from decimal import Decimal
 import math
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
@@ -22,7 +22,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from core.models import Order, TripMetrics, LocationLog
 from core.serializers import (
     UserSerializer, OrderSerializer, LocationLogSerializer,
-    DemandCenterSerializer, UserRegisterSerializer, LoginSerializer
+    DemandCenterSerializer, UserRegisterSerializer, LoginSerializer,
+    TripHistorySerializer
 )
 
 User = get_user_model()
@@ -98,7 +99,7 @@ class RiderAnalyticsView(APIView):
         seven_days_ago = today - timedelta(days=7)
 
         delivered_orders = Order.objects.filter(rider=request.user, status=Order.Status.DELIVERED)
-        
+         
         stats = delivered_orders.aggregate(
             all_time_balance=Sum('trip_metrics__total_fare'),
             today_total=Sum('trip_metrics__total_fare', filter=Q(updated_at__date=today)),
@@ -118,12 +119,47 @@ class RiderAnalyticsView(APIView):
             ]
         })
 
+
+class RiderTripHistoryView(APIView):
+    """Returns a list of completed trips for the authenticated rider for a specific date."""
+    permission_classes = [IsAuthenticated, IsRiderPermission]
+    serializer_class = TripHistorySerializer
+
+    def get(self, request):
+        # Get date parameter from query params (format: YYYY-MM-DD)
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response(
+                {"detail": "Date parameter is required (format: YYYY-MM-DD)"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Parse the date string
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return Response(
+                {"detail": "Invalid date format. Use YYYY-MM-DD"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Filter orders by rider, status=DELIVERED, and completion date (updated_at)
+        orders = Order.objects.filter(
+            rider=request.user,
+            status=Order.Status.DELIVERED,
+            updated_at__date=target_date
+        ).select_related('trip_metrics').order_by('-updated_at')
+        
+        serializer = self.serializer_class(orders, many=True)
+        return Response(serializer.data)
+
 # --- ORDER MANAGEMENT ---
 
 class NearbyOrdersView(generics.ListAPIView):
     """Lists PENDING orders sorted by proximity using the Haversine formula."""
     serializer_class = OrderSerializer
     permission_classes = [IsAuthenticated, IsRiderPermission]
+    pagination_class = None  # Disable pagination; we return custom sorted list
 
     def get_queryset(self):
         return Order.objects.filter(
@@ -200,11 +236,37 @@ class OrderStartPickupView(APIView):
     def post(self, request, pk):
         # Ensure the order belongs to this rider and is in the correct state
         order = get_object_or_404(Order, pk=pk, rider=request.user, status=Order.Status.PICKED_UP)
-        
+
         # Update to IN_TRANSIT to signal the rider is moving
         order.status = Order.Status.IN_TRANSIT
         order.save()
 
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+class OrderArriveAtPickupView(APIView):
+    """
+    Rider marks that they have arrived at the pickup location.
+    Updates order with arrival location/timestamp and allows wait timer to start.
+    """
+    permission_classes = [IsAuthenticated, IsRiderPermission]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk, rider=request.user, status=Order.Status.PICKED_UP)
+
+        # Store arrival location in order or related model (could extend Order model with arrival fields)
+        # For now, we'll create a LocationLog entry for arrival
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+
+        if latitude and longitude:
+            LocationLog.objects.create(
+                rider=request.user,
+                latitude=latitude,
+                longitude=longitude,
+            )
+
+        # Note: Status remains PICKED_UP until startPickup is called
+        # This allows wait timer to run at pickup location
         return Response(OrderSerializer(order, context={"request": request}).data)
 class RiderActiveOrderView(APIView):
     """Returns the current order in progress for the rider."""

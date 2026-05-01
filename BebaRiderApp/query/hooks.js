@@ -62,6 +62,18 @@ export const useNearbyOrders = (latitude, longitude, enabled = true) => {
 };
 
 /**
+ * Fetch trip history for a specific date (YYYY-MM-DD)
+ */
+export const useTripHistory = (date) => {
+  return useQuery({
+    queryKey: ['rider', 'trip-history', date],
+    queryFn: () => RiderService.getTripHistory(date),
+    enabled: !!date,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+/**
  * Fetch demand centers for heatmap
  */
 export const useDemandCenters = () => {
@@ -123,15 +135,31 @@ export const useCompleteOrder = () => {
 };
 
 /**
- * Request return item mutation
- */
-export const useRequestReturn = () => {
-  return useMutation({
-    mutationFn: OrderService.requestReturn,
-  });
-};
+  * Request return item mutation
+  */
+ export const useRequestReturn = () => {
+   return useMutation({
+     mutationFn: OrderService.requestReturn,
+   });
+ };
 
-// ============ AUTH MUTATIONS ============
+ /**
+  * Mark arrived at pickup mutation
+  */
+ export const useArriveAtPickup = () => {
+   const queryClient = useQueryClient();
+
+   return useMutation({
+     mutationFn: ({ orderId, latitude, longitude }) =>
+       OrderService.arriveAtPickup(orderId, latitude, longitude),
+     onSuccess: () => {
+       // Optionally invalidate queries if needed
+       queryClient.invalidateQueries({ queryKey: ['order', 'active'] });
+     },
+   });
+ };
+
+ // ============ AUTH MUTATIONS ============
 
 /**
  * Login mutation

@@ -1,6 +1,7 @@
 // API Service functions
 // These are thin wrappers around the API client for cleaner component code
 
+import api from './client';
 import { riderAPI, orderAPI, demandAPI, authAPI } from './client';
 
 // Auth Services
@@ -32,10 +33,16 @@ export const RiderService = {
     return response.data;
   },
   
-  getNearbyOrders: async (lat, lng) => {
-    const response = await riderAPI.getNearbyOrders(lat, lng);
-    return response.data;
-  },
+   getNearbyOrders: async (lat, lng) => {
+     const response = await riderAPI.getNearbyOrders(lat, lng);
+     return response.data;
+   },
+
+    // Get completed trips for a specific date (YYYY-MM-DD format)
+    getTripHistory: async (date) => {
+      const response = await api.get(`/api/rider/trip-history/?date=${date}`);
+      return response.data;
+    },
   
   updateLocation: async (latitude, longitude) => {
     const response = await riderAPI.updateLocation(latitude, longitude);
@@ -49,22 +56,27 @@ export const OrderService = {
     const response = await orderAPI.acceptOrder(orderId);
     return response.data;
   },
-  
+
   startPickup: async (orderId, latitude, longitude) => {
     const response = await orderAPI.startPickup(orderId, latitude, longitude);
     return response.data;
   },
-  
+
+  arriveAtPickup: async (orderId, latitude, longitude) => {
+    const response = await orderAPI.arriveAtPickup(orderId, latitude, longitude);
+    return response.data;
+  },
+
   completeOrder: async (orderId) => {
     const response = await orderAPI.completeOrder(orderId);
     return response.data;
   },
-  
+
   requestReturn: async (orderId) => {
     const response = await orderAPI.requestReturn(orderId);
     return response.data;
   },
-  
+
   getTripDetails: async (orderId) => {
     const response = await orderAPI.getTripDetails(orderId);
     return response.data;

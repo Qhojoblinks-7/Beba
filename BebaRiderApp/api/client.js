@@ -79,20 +79,24 @@ export const riderAPI = {
 // Order endpoints
 export const orderAPI = {
   // Accept an order (change status to PICKED_UP)
-  acceptOrder: (orderId) => api.post(`/orders/${orderId}/accept/`),
-  
+  acceptOrder: (orderId) => api.post(`/api/orders/${orderId}/accept/`),
+
   // Start pickup (change status to IN_TRANSIT)
   startPickup: (orderId, latitude, longitude) =>
-    api.post(`/orders/${orderId}/start-pickup/`, { latitude, longitude }),
-  
+    api.post(`/api/orders/${orderId}/start-pickup/`, { latitude, longitude }),
+
+  // Mark arrived at pickup (change status to ARRIVED_AT_PICKUP)
+  arriveAtPickup: (orderId, latitude, longitude) =>
+    api.post(`/api/orders/${orderId}/arrive-at-pickup/`, { latitude, longitude }),
+
   // Complete delivery (change status to DELIVERED)
-  completeOrder: (orderId) => api.post(`/orders/${orderId}/complete/`),
-  
+  completeOrder: (orderId) => api.post(`/api/orders/${orderId}/complete/`),
+
   // Request return item (recalculation)
-  requestReturn: (orderId) => api.post(`/orders/${orderId}/return-item/`),
-  
+  requestReturn: (orderId) => api.post(`/api/orders/${orderId}/return-item/`),
+
   // Get trip metrics/details
-  getTripDetails: (orderId) => api.get(`/orders/${orderId}/trip-metrics/`),
+  getTripDetails: (orderId) => api.get(`/api/orders/${orderId}/trip-metrics/`),
 };
 
 // Heatmap/Demand endpoints

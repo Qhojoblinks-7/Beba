@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BebaText from "../atoms/BebaText";
 import EarningsChart from "../organisms/EarningsChart";
 import { Palette } from "../../constants/theme";
+import { useTripHistory } from "../../query/hooks";
 
 const DailyEarningsDetail = ({
   date = "April 24",
@@ -16,39 +17,64 @@ const DailyEarningsDetail = ({
 }) => {
   const insets = useSafeAreaInsets();
 
-  // 1. DUMMY DATA FOR TRIPS
-  const dummyTrips = [
-    {
-      time: "20:01",
-      location: "Ablekuma West, Akoa Ndor Road",
-      amount: "22.35",
-    },
-    {
-      time: "19:45",
-      location: "Kaale Street, 1, Asafoatse Omani Street",
-      amount: "17.15",
-    },
-    {
-      time: "18:20",
-      location: "Tudu Road, Accra Central",
-      amount: "45.00",
-    },
-    {
-      time: "17:10",
-      location: "Dzorwulu, Blohum Street",
-      amount: "31.20",
-    },
-    {
-      time: "15:45",
-      location: "Makola Market, Kinbu Road",
-      amount: "28.50",
-    },
-    {
-      time: "14:30",
-      location: "Korle Bu, Guggisberg Avenue",
-      amount: "19.00",
-    },
-  ];
+  // Convert human-readable date (e.g. "Friday, Apr 24" or "Apr 24") to YYYY-MM-DD for API
+  const parseDateToISO = (dateStr) => {
+    const monthMap = {
+      jan: '01', january: '01',
+      feb: '02', february: '02',
+      mar: '03', march: '03',
+      apr: '04', april: '04',
+      may: '05',
+      jun: '06', june: '06',
+      jul: '07', july: '07',
+      aug: '08', august: '08',
+      sep: '09', september: '09',
+      oct: '10', october: '10',
+      nov: '11', november: '11',
+      dec: '12', december: '12',
+    };
+    // Remove comma and split
+    const parts = dateStr.toLowerCase().replace(',', '').split(' ').filter(p => p);
+    if (parts.length < 2) return new Date().toISOString().split('T')[0];
+
+    let monthIdx = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const key = parts[i].substring(0, 3);
+      if (monthMap[key]) {
+        monthIdx = i;
+        break;
+      }
+    }
+    const month = monthMap[parts[monthIdx]?.substring(0, 3)];
+    const dayRaw = parts[monthIdx + 1];
+    const day = dayRaw ? dayRaw.padStart(2, '0') : null;
+
+    if (month && day) {
+      const year = new Date().getFullYear();
+      return `${year}-${month}-${day}`;
+    }
+    return new Date().toISOString().split('T')[0];
+  };
+
+  const dateISO = parseDateToISO(date);
+
+  // Fetch real trip history from backend
+  const { data: tripHistory = [], isLoading } = useTripHistory(dateISO);
+
+  // Derive totals from actual trip data
+  const [computedEarnings, setComputedEarnings] = useState(parseFloat(totalEarnings) || 0);
+  const [computedTripCount, setComputedTripCount] = useState(parseInt(tripCount, 10) || 0);
+
+  useEffect(() => {
+    if (!isLoading && tripHistory.length > 0) {
+      const total = tripHistory.reduce((sum, item) => {
+        const val = typeof item.amount === 'string' ? parseFloat(item.amount) : (item.amount || 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+      setComputedEarnings(total);
+      setComputedTripCount(tripHistory.length);
+    }
+  }, [isLoading, tripHistory]);
 
   const rawChartData = [
     { day: "20", label: "Apr", value: 223.83 },
@@ -91,13 +117,15 @@ const DailyEarningsDetail = ({
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.summarySection}>
-          <BebaText style={styles.totalAmount}>GHS {totalEarnings}</BebaText>
-          <BebaText category="body3" color={Palette.gray500}>
-            {tripCount} trips
-          </BebaText>
-        </View>
+       <ScrollView showsVerticalScrollIndicator={false}>
+         <View style={styles.summarySection}>
+           <BebaText style={styles.totalAmount}>
+             GHS {computedEarnings.toFixed(2)}
+           </BebaText>
+           <BebaText category="body3" color={Palette.gray500}>
+             {computedTripCount} trips
+           </BebaText>
+         </View>
 
         <View style={styles.chartContainer}>
           <EarningsChart
@@ -137,45 +165,56 @@ const DailyEarningsDetail = ({
           </ScrollView>
         </View>
 
-        <View style={styles.listSection}>
-          <BebaText category="h3" style={styles.dateLabel}>
-            {date}
-          </BebaText>
-          <View style={styles.divider} />
+         <View style={styles.listSection}>
+           <BebaText category="h3" style={styles.dateLabel}>
+             {date}
+           </BebaText>
+           <View style={styles.divider} />
 
-          {/* Rendering the Dummy Trips */}
-          {dummyTrips.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.tripRow}
-              onPress={() => navigation.navigate("TripDetails")}
-            >
-              <View style={styles.iconContainer}>
-                <Car size={24} color={Palette.black} />
-              </View>
+           {/* Rendering Trip History from API */}
+           {isLoading ? (
+             <View style={styles.centerPadding}>
+               {/* You can add a loader here if needed */}
+               <BebaText color={Palette.gray500}>Loading trips...</BebaText>
+             </View>
+           ) : tripHistory.length === 0 ? (
+             <View style={styles.centerPadding}>
+               <BebaText color={Palette.gray500}>No trips found for this day.</BebaText>
+             </View>
+           ) : (
+             tripHistory.map((item, index) => (
+               <TouchableOpacity
+                 key={index}
+                 style={styles.tripRow}
+                 onPress={() => navigation.navigate("TripDetails")}
+               >
+                 <View style={styles.iconContainer}>
+                   <Car size={24} color={Palette.black} />
+                 </View>
 
-              <View style={styles.tripInfo}>
-                <BebaText category="h4" style={styles.tripTime}>
-                  {item.time}
-                </BebaText>
-                <BebaText
-                  category="body4"
-                  color={Palette.gray500}
-                  numberOfLines={2}
-                  style={styles.locationText}
-                >
-                  {item.location}
-                </BebaText>
-              </View>
+                 <View style={styles.tripInfo}>
+                   <BebaText category="h4" style={styles.tripTime}>
+                     {item.time}
+                   </BebaText>
+                   <BebaText
+                     category="body4"
+                     color={Palette.gray500}
+                     numberOfLines={2}
+                     style={styles.locationText}
+                   >
+                     {item.location}
+                   </BebaText>
+                 </View>
 
-              <View style={styles.amountContainer}>
-                <BebaText category="h4" style={styles.tripAmount}>
-                  GHS {item.amount}
-                </BebaText>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+                 <View style={styles.amountContainer}>
+                   <BebaText category="h4" style={styles.tripAmount}>
+                     GHS {typeof item.amount === 'number' ? item.amount.toFixed(2) : item.amount}
+                   </BebaText>
+                 </View>
+               </TouchableOpacity>
+             ))
+           )}
+         </View>
       </ScrollView>
     </View>
   );
@@ -259,6 +298,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  centerPadding: { padding: 20, alignItems: "center", justifyContent: "center" },
 });
 
 export default DailyEarningsDetail;

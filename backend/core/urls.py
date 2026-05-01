@@ -14,11 +14,13 @@ urlpatterns = [
     # Rider endpoints
     path("api/riders/me/", views.RiderProfileView.as_view(), name="rider-profile"),
     path("api/rider/analytics/", views.RiderAnalyticsView.as_view(), name="rider-analytics"),
+    path("api/rider/trip-history/", views.RiderTripHistoryView.as_view(), name="rider-trip-history"),
     path("api/riders/active-order/", views.RiderActiveOrderView.as_view(), name="rider-active-order"),
     path("api/riders/nearby-orders/", views.NearbyOrdersView.as_view(), name="nearby-orders"),
 
     # Order endpoints
     path("api/orders/<int:pk>/accept/", views.OrderAcceptView.as_view(), name="order-accept"),
+    path("api/orders/<int:pk>/arrive-at-pickup/", views.OrderArriveAtPickupView.as_view(), name="order-arrive-at-pickup"),
     path("api/orders/<int:pk>/start-pickup/", views.OrderStartPickupView.as_view(), name="order-start-pickup"),
     path("api/orders/<int:pk>/complete/", views.OrderCompleteView.as_view(), name="order-complete"),
 

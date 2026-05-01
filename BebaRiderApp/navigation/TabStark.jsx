@@ -1,19 +1,51 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Home, BarChart2, MessageCircle, User } from 'lucide-react-native';
 import { Palette, Typography } from '../constants/theme';
 
-// Import Stacks/Screens
-import AppStack from '../navigation/AppStark';
-import EarningsStack from '../navigation/EarningsStack';
-import MessageStack from '../navigation/MessageStack';
-import ProfileStack from '../navigation/ProfileStack';
+// Import Screens
+import AppStack from './AppStark';
+import EarningsStack from './EarningsStack';
+import MessageStack from './MessageStack';
+import ProfileStack from './ProfileStack';
+import ActiveTrip from '../screens/ActiveTrip';
+import QRScanner from '../screens/QRScanner';
+import { useActiveOrder } from '../query/hooks';
 
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
+
+/**
+ * ActiveTripStack: Screen stack shown exclusively during an active delivery.
+ * Contains ActiveTrip and QRScanner (for verification).
+ */
+const ActiveTripStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="ActiveTrip" component={ActiveTrip} />
+      <Stack.Screen name="QRScanner" component={QRScanner} />
+    </Stack.Navigator>
+  );
+};
+
+/**
+ * OrdersTabContent: Conditional wrapper for the Orders tab.
+ * If rider has an active order, shows ActiveTripStack instead of the regular AppStack.
+ * This makes ActiveTrip the effective home screen during a trip.
+ */
+const OrdersTabContent = () => {
+  const { data: activeOrder } = useActiveOrder();
+  // Show ActiveTripStack while a trip is in progress; otherwise normal app flow
+  return activeOrder ? <ActiveTripStack /> : <AppStack />;
+};
 
 /**
  * TabStack: The Main Application Shell
  * Provides quick access to Orders, Earnings, Messages, and Profile.
+ *
+ * The Orders tab dynamically switches between the regular app flow (AppStack)
+ * and the ActiveTripStack when a delivery is in progress.
  */
 const TabStack = () => {
   return (
@@ -43,25 +75,25 @@ const TabStack = () => {
         headerShown: false,
       })}
     >
-      <Tab.Screen 
-        name="Orders" 
-        component={AppStack} 
-        options={{ title: 'Orders' }} 
+      <Tab.Screen
+        name="Orders"
+        component={OrdersTabContent}
+        options={{ title: 'Orders' }}
       />
-      <Tab.Screen 
-        name="Money" 
-        component={EarningsStack} 
-        options={{ title: 'Money' }} 
+      <Tab.Screen
+        name="Money"
+        component={EarningsStack}
+        options={{ title: 'Money' }}
       />
-       <Tab.Screen 
-         name="Messages" 
-         component={MessageStack} 
-         options={{ title: 'Messages' }} 
-       />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileStack} 
-        options={{ title: 'Profile' }} 
+      <Tab.Screen
+        name="Messages"
+        component={MessageStack}
+        options={{ title: 'Messages' }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStack}
+        options={{ title: 'Profile' }}
       />
     </Tab.Navigator>
   );
