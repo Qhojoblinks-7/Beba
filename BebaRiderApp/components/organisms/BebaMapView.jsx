@@ -46,7 +46,7 @@ const BebaMapView = ({
     if (cameraRef.current?.setStop) {
       cameraRef.current.setStop({
         zoomLevel: newZoom,
-        duration: 300,
+        animationDuration: 300,
       });
     }
   };
@@ -56,15 +56,12 @@ const BebaMapView = ({
    * Fly to actual device location if available, otherwise fallback.
    */
   const handleRecenter = () => {
-    const target = currentLocation 
+    const target = currentLocation
       ? [currentLocation.longitude, currentLocation.latitude]
       : centerCoordinate;
 
     if (cameraRef.current?.flyTo) {
-      cameraRef.current.flyTo({
-        center: target,
-        duration: 1000,
-      });
+      cameraRef.current.flyTo(target, 1000);
       setZoomLevel(16);
     }
   };
