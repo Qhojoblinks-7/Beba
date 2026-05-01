@@ -96,8 +96,8 @@ OFFLINE → ONLINE → ON_TRIP → OFFLINE
 ### Delivery Tracking Screen (`DeliveryTrackingScreen.jsx`)
 
 - Shows active delivery and its status
-- Quick actions: Navigate, Call Customer
-- List of recent deliveries with order IDs
+- Quick actions: Navigate, Call Customer,etc
+- List of recent deliveries not made with order IDs
 - Route and destination information
 
 ### Active Trip Screen (`ActiveTrip.jsx`)

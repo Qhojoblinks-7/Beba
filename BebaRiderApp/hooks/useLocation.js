@@ -17,6 +17,9 @@ export const useLocation = () => {
   
   const watchSubscription = useRef(null);
   const locationUpdateInterval = useRef(null);
+
+  // Get the mutation hook at the top level (Rules of Hooks)
+  const updateLocationMutation = useUpdateLocation();
   
   // Request location permissions
   const requestPermissions = useCallback(async () => {
@@ -87,20 +90,19 @@ export const useLocation = () => {
          }
        );
        
-       setIsTracking(true);
-       
-       // Also send periodic updates to backend using TanStack Query mutation
-       const updateLocationMutation = useUpdateLocation();
-       locationUpdateInterval.current = setInterval(() => {
-         if (location) {
-           updateLocationMutation.mutate({
-             latitude: location.latitude,
-             longitude: location.longitude,
-             accuracy: location.accuracy,
-             timestamp: location.timestamp,
-           });
-         }
-       }, 5000);
+        setIsTracking(true);
+
+        // Also send periodic updates to backend using TanStack Query mutation
+        locationUpdateInterval.current = setInterval(() => {
+          if (location) {
+            updateLocationMutation.mutate({
+              latitude: location.latitude,
+              longitude: location.longitude,
+              accuracy: location.accuracy,
+              timestamp: location.timestamp,
+            });
+          }
+        }, 5000);
        
        // Get initial location
        await getCurrentLocation();
@@ -111,7 +113,7 @@ export const useLocation = () => {
        setError(err.message);
        return false;
      }
-   }, [permissionStatus, requestPermissions, getCurrentLocation, location]);
+    }, [permissionStatus, requestPermissions, getCurrentLocation, location, updateLocationMutation]);
   
   // Stop location tracking
   const stopLocationTracking = useCallback(() => {

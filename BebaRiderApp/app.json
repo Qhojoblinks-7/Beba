@@ -15,17 +15,40 @@
       "duration": 500
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Beba needs your location to find deliveries near you and track your route."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#174E4F"
       },
-      "edgeToEdgeEnabled": false
+      "edgeToEdgeEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.immanuel_e.BebaRiderApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "@maplibre/maplibre-react-native",
+        {
+          "RNMapLibreAccessToken": null
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f6649648-7ee0-4b99-ac96-f6bbf722b4f2"
+      }
     }
   }
 }

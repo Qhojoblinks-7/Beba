@@ -1,75 +1,109 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapView, { PROVIDER_GOOGLE, Polyline, Marker } from 'react-native-maps';
+import MapLibreGL from '@maplibre/maplibre-react-native';
 import { Palette } from '../../constants/theme';
 
+// Initialize MapLibre (no access token needed for OpenStreetMap tiles)
+// For custom styles, you can set a style URL: MapLibreGL.setStyle('https://demotiles.maplibre.org/style.json')
+
 /**
- * Beba MapView Organism
+ * Beba MapView Organism - Powered by MapLibre
  * @param {object} region - Current GPS coordinates {latitude, longitude, latitudeDelta, longitudeDelta}
- * @param {array} routeCoordinates - Array of coords for the "Electric Lime" path
- * @param {object} destination - Coords for the drop-off marker
- * @param {object} navigationMarker - Coords for the red navigation arrow
+ * @param {array} routeCoordinates - Array of {latitude, longitude} for the route polyline
+ * @param {object} destination - Coords for the drop-off marker {latitude, longitude}
+ * @param {object} navigationMarker - Coords for the rider's current location marker
+ * @param {object} style - Optional additional styles for the container
  */
-const BebaMapView = ({ region, routeCoordinates = [], destination, navigationMarker }) => {
+const BebaMapView = ({ region, routeCoordinates = [], destination, navigationMarker, style }) => {
+  // Center coordinate [longitude, latitude]
+  const centerCoordinate = region
+    ? [region.longitude, region.latitude]
+    : navigationMarker
+    ? [navigationMarker.longitude, navigationMarker.latitude]
+    : [-0.2045, 5.5566];
+
+  // Build GeoJSON LineString for route
+  const lineString = routeCoordinates.length > 0 ? {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'LineString',
+      coordinates: routeCoordinates.map(coord => [coord.longitude, coord.latitude]),
+    },
+  } : null;
+
   return (
-    <View style={styles.container}>
-      <MapView
-        provider={PROVIDER_GOOGLE}
+    <View style={[styles.container, style]}>
+      <MapLibreGL.MapView
         style={styles.map}
-        initialRegion={region}
-        showsUserLocation={true}
-        showsMyLocationButton={false}
-        customMapStyle={lightMapStyle} 
+        styleURL="https://demotiles.maplibre.org/style.json"
+        scrollEnabled={true}
+        zoomEnabled={true}
+        pitchEnabled={true}
+        rotateEnabled={true}
       >
-        {/* The "Electric Lime" Route Line */}
-        {routeCoordinates.length > 0 && (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor={Palette.primary}
-            strokeWidth={4}
-            lineDashPattern={[1]}
-          />
+        {/* Camera follows region */}
+        <MapLibreGL.Camera
+          zoomLevel={15}
+          centerCoordinate={centerCoordinate}
+          animationMode="flyTo"
+          animationDuration={1000}
+        />
+
+        {/* Route polyline (if provided) */}
+        {lineString && (
+          <MapLibreGL.ShapeSource id="routeSource" shape={lineString}>
+            <MapLibreGL.LineLayer
+              id="routeLine"
+              style={{
+                lineColor: Palette.primary,
+                lineWidth: 4,
+                lineDashPattern: [2, 2],
+              }}
+            />
+          </MapLibreGL.ShapeSource>
         )}
 
-        {/* Destination Marker */}
+        {/* Destination marker (drop-off point) */}
         {destination && (
-          <Marker coordinate={destination}>
+          <MapLibreGL.PointAnnotation
+            id="destination"
+            coordinate={[destination.longitude, destination.latitude]}
+          >
             <View style={styles.destinationMarker}>
               <View style={styles.innerMarker} />
             </View>
-          </Marker>
+          </MapLibreGL.PointAnnotation>
         )}
 
-        {/* Red Navigation Arrow Marker */}
+        {/* Rider current location marker (red arrow) */}
         {navigationMarker && (
-          <Marker coordinate={navigationMarker}>
+          <MapLibreGL.PointAnnotation
+            id="riderLocation"
+            coordinate={[navigationMarker.longitude, navigationMarker.latitude]}
+          >
             <View style={styles.navigationMarker}>
               <View style={styles.arrowInner} />
             </View>
-          </Marker>
+          </MapLibreGL.PointAnnotation>
         )}
-      </MapView>
+
+        {/* Local location puck (blue dot) */}
+        <MapLibreGL.UserLocation
+          visible={true}
+          showsUserHeadingIndicator={true}
+        />
+      </MapLibreGL.MapView>
     </View>
   );
 };
 
-// Simplified Light Mode Style to keep it clean for riders
-const lightMapStyle = [
-  { "featureType": "water", "elementType": "geometry", "stylers": [{ "color": "#e9e9e9" }] },
-  { "featureType": "landscape", "elementType": "geometry", "stylers": [{ "color": "#f5f5f5" }] },
-  { "featureType": "road", "elementType": "geometry", "stylers": [{ "color": "#ffffff" }] },
-  { "featureType": "poi", "stylers": [{ "visibility": "off" }] }
-];
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: Palette.gray100,
   },
   map: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
   },
   destinationMarker: {
     height: 24,

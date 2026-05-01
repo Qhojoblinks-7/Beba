@@ -11,9 +11,10 @@ import { Palette, Typography, Spacing } from "../../constants/theme";
 const BebaButton = ({
   title,
   onPress,
-  loading = false, // fixed typo 'falese'
+  loading = false,
   secondary = false,
   danger = false,
+  disabled = false,
   style,
 }) => {
   
@@ -27,12 +28,10 @@ const BebaButton = ({
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
-      disabled={loading}
-      // Fixed 'stlye' typo to 'style' 
-      // Changed 'StyleSheet.button' to 'styles.button'
+      disabled={loading || disabled}
       style={[
         styles.button,
-        { backgroundColor: getBackgroundColor() },
+        { backgroundColor: getBackgroundColor(), opacity: (loading || disabled) ? 0.5 : 1 },
         style,
       ]}
     >

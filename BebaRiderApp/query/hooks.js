@@ -54,8 +54,10 @@ export const useNearbyOrders = (latitude, longitude, enabled = true) => {
     queryKey: ['orders', 'nearby', latitude, longitude],
     queryFn: () => RiderService.getNearbyOrders(latitude, longitude),
     enabled: enabled && !!latitude && !!longitude,
-    staleTime: 1000 * 30, // 30 seconds
-    refetchInterval: 1000 * 15, // refetch every 15 seconds when online
+    staleTime: 1000 * 10, // 10 seconds - fetch more frequently
+    refetchInterval: 1000 * 10, // refetch every 10 seconds when online
+    refetchOnMount: true, // Always refetch on component mount
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 };
 

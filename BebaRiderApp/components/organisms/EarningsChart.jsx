@@ -1,114 +1,131 @@
-import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
-import { Palette, Spacing } from '../../constants/theme';
+import { Palette } from '../../constants/theme';
 import BebaText from '../atoms/BebaText';
 
-const { width } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const EarningsChart = ({ data = [], onBarPress }) => {
   const days = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   const currentDayLabel = days[new Date().getDay()];
+  
+  const [activeBarIndex, setActiveBarIndex] = useState(null);
 
-  const [activeBarIndex, setActiveBarIndex] = React.useState(null);
+  const chartHeight = 220;
+  const maxDataValue = data.length > 0 ? Math.max(...data.map(d => d.y)) : 100;
+  const adjustedMaxValue = maxDataValue / 0.7;
 
-  // We find the max value to keep the bars stretched
-  const maxVal = data.length > 0 ? Math.max(...data.map(d => d.y)) : 100;
+  // Define fixed spacing and bar width to force a total width larger than the screen
+  const BAR_WIDTH = 55;
+  const SPACING = 25;
+  const TOTAL_CHART_WIDTH = (BAR_WIDTH + SPACING) * data.length + 40; // + padding
 
-  const chartData = data.map((item, index) => {
-    const isToday = item.x === currentDayLabel;
-    const isActive = activeBarIndex === index;
-    const isSelected = isActive || isToday;
-
-    return {
-      value: item.y,
-      label: item.x,
-      showGradient: true, 
-      frontColor: Palette.primary, 
-      gradientColor: '#006D28',    
+  const chartData = useMemo(() => {
+    return data.map((item, index) => {
+      const isToday = item.x === currentDayLabel;
+      const isActive = activeBarIndex === index || (activeBarIndex === null && isToday);
       
-      // We wrap the text in a container with a fixed height and negative margin
-      // This forces the library to render it exactly at the bar's tip
-      topLabelComponent: () => (
-        <View style={styles.stickyLabelWrapper}>
-          <BebaText 
-            category="body4" 
-            style={styles.labelText}
-            color={isSelected ? Palette.primary : Palette.gray500}
-          >
-            {item.y > 0 ? item.y : ''}
-          </BebaText>
-        </View>
-      ),
-      labelTextStyle: {
-        color: isSelected ? Palette.black : Palette.gray400,
-        fontSize: 12,
-        fontWeight: isSelected ? '700' : '400'
-      },
-      onPress: () => {
-        setActiveBarIndex(index);
-        if (onBarPress) onBarPress(item, index);
-      },
-    };
-  });
+      return {
+        value: item.y,
+        label: item.x,
+        frontColor: isActive ? '#1A4D4D' : '#2f6666', 
+        gradientColor: isActive ? '#1A4D4D' : '#ebffff',
+        showGradient: true,
+        
+        topLabelComponent: () => isActive ? (
+          <View style={styles.tooltipContainer}>
+            <View style={styles.pillLabel}>
+              <BebaText category="body4" style={styles.pillText}>
+                {item.y}
+              </BebaText>
+            </View>
+            <View style={styles.indicatorDot} />
+          </View>
+        ) : null,
+
+        onPress: () => {
+          setActiveBarIndex(index);
+          if (onBarPress) onBarPress(item, index);
+        },
+      };
+    });
+  }, [data, activeBarIndex, currentDayLabel]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.chartWrapper}>
+      {/* 
+        Wrapping in a horizontal ScrollView allows you to swipe 
+        through the days if the total width exceeds the screen.
+      */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContainer}
+      >
         <BarChart
           data={chartData}
-          barWidth={50}
-          noOfSections={4}
-          barBorderRadius={10}
+          barWidth={BAR_WIDTH}
+          spacing={SPACING}
+          initialSpacing={20}
+          height={chartHeight}
+          maxValue={adjustedMaxValue}
+          width={TOTAL_CHART_WIDTH}
+          
+          barBorderRadius={20} 
+          hideAxesAndRules
+          hideYAxisText
           yAxisThickness={0}
           xAxisThickness={0}
-          hideRules
-          hideYAxisText
-          spacing={20}
-          height={180} 
-          maxValue={maxVal + 5} // Tight ceiling to keep bars stretched
-          width={width}
+          
           isAnimated
-          animationDuration={800}
-          initialSpacing={0}
-          showGradient
-          isThreeD={false}
-          // This ensures the labels don't drift as the bars get taller
-          labelsExtraHeight={0} 
+          animationDuration={600}
         />
-      </View>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Palette.white,
-    paddingTop: Spacing.padding -30,
-    paddingHorizontal: 0,
-    marginLeft: 0,
-    marginRight: 0,
+    backgroundColor: '#F4F7F7', 
+    paddingVertical: 20,
+    borderRadius: 20,
   },
-  chartWrapper: {
-    alignItems: 'flex-start',
-    marginBottom: Spacing.padding,
-    width: width,
-    marginLeft: 0,
-  },
-  stickyLabelWrapper: {
-    height: 20,
-    justifyContent: 'center',
+  scrollContainer: {
+    paddingRight: 40, // Extra space at the end of the scroll
     alignItems: 'center',
-    // Using a negative marginBottom pulls the label down into the bar's "zone"
-    // so it doesn't float away as the value increases
-    marginBottom: - 10, 
-    width: 40,
   },
-  labelText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  }
+  tooltipContainer: {
+    alignItems: 'center',
+    marginBottom: 6,
+    width: 60,
+  },
+  pillLabel: {
+    backgroundColor: Palette.white,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  pillText: {
+    color: Palette.black,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  indicatorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Palette.white,
+    borderWidth: 2,
+    borderColor: '#1A4D4D',
+    marginTop: 2,
+  },
 });
 
 export default EarningsChart;

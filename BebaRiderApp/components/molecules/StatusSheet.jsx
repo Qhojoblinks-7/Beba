@@ -7,13 +7,12 @@ import BebaButton from '../atoms/BebaButton';
 import { Star, Wallet, Settings2, ChevronRight } from 'lucide-react-native';
 
 const StatusSheet = ({ 
-  isOnline, 
   onToggleStatus, 
-  navigation, 
+  onAcceptOrder,
+  navigation,
   riderStatus, 
   earnings, 
   availableOrdersCount, 
-  hasActiveOrder,
   isLoading 
 }) => {
   // Get the status text
@@ -40,9 +39,9 @@ const StatusSheet = ({
     }
   };
 
-  // Get deliveries count
-  const getDeliveriesCount = () => {
-    return earnings?.completedTrips || 0;
+   // Get available orders count for the Deliveries card
+   const getDeliveriesCount = () => {
+     return availableOrdersCount;
    };
 
   // Get earnings amount formatted
@@ -51,12 +50,46 @@ const StatusSheet = ({
     return `GH₵ ${amount.toFixed(2)}`;
   };
 
-  // Navigate to delivery tracking screen (only if no active order)
-  const handleDeliveriesPress = () => {
-    if (navigation && !hasActiveOrder) {
-      navigation.navigate('DeliveryTracking');
-    }
-  };
+   // Navigate to earnings screen (Money tab)
+   const handleEarningsPress = () => {
+     navigation.navigate('Money');
+   };
+
+    // Navigate to delivery tracking screen (only if not on an active trip)
+    const handleDeliveriesPress = () => {
+      if (riderStatus !== RIDER_STATUS.ON_TRIP) {
+        navigation.navigate('DeliveryTracking');
+      }
+    };
+
+    // Compute yellow button configuration based on rider status and orders
+    const getButtonConfig = () => {
+      if (riderStatus === RIDER_STATUS.OFFLINE) {
+        return {
+          title: 'Go Online',
+          onPress: onToggleStatus,
+          disabled: false,
+        };
+      }
+
+      // ONLINE (cannot be ON_TRIP because this button is hidden when ON_TRIP)
+      if (availableOrdersCount > 0) {
+        return {
+          title: 'Start Delivery',
+          onPress: onAcceptOrder,
+          disabled: false,
+        };
+      }
+
+      // No orders available
+      return {
+        title: 'Waiting for orders...',
+        onPress: undefined,
+        disabled: true,
+      };
+    };
+
+    const buttonConfig = getButtonConfig();
 
   return (
     <View style={styles.container}>
@@ -73,31 +106,35 @@ const StatusSheet = ({
             {getStatusSubtitle()}
           </BebaText>
         </View>
-        <TouchableOpacity style={styles.settingsBtn}>
+        <TouchableOpacity 
+          style={styles.settingsBtn}
+          onPress={onToggleStatus}
+          disabled={riderStatus === RIDER_STATUS.ON_TRIP}
+        >
           <Settings2 size={24} color={Palette.textPrimary} />
         </TouchableOpacity>
       </View>
 
-      {/* 3. Main Action Button (Yellow) */}
-      {riderStatus !== RIDER_STATUS.ON_TRIP && (
-        <BebaButton
-          title={isOnline ? 'Turn off order search' : 'Turn on order search'}
-          subtitle={isOnline ? 'Stop receiving orders' : 'Start receiving orders'}
-          onPress={onToggleStatus}
-          loading={isLoading}
-          style={styles.yellowButton}
-          textStyle={styles.buttonText}
-        />
-      )}
+       {/* 3. Main Action Button (Yellow) */}
+       {riderStatus !== RIDER_STATUS.ON_TRIP && (
+         <BebaButton
+           title={buttonConfig.title}
+           onPress={buttonConfig.onPress}
+           loading={isLoading}
+           style={styles.yellowButton}
+           disabled={buttonConfig.disabled}
+         />
+       )}
 
       {/* 4. Horizontal Stats Row */}
       <View style={styles.statsRow}>
-         {/* Priority Card / Deliveries */}
-         <TouchableOpacity 
-           style={styles.statCard} 
-           onPress={handleDeliveriesPress}
-           disabled={hasActiveOrder}
-         >
+          {/* Priority Card / Deliveries */}
+          <TouchableOpacity 
+            style={styles.statCard} 
+            onPress={handleDeliveriesPress}
+            disabled={riderStatus === RIDER_STATUS.ON_TRIP}
+            activeOpacity={0.7}
+          >
 <View style={styles.iconCircle}>
              <Star size={20} color={Palette.textPrimary} />
            </View>
@@ -110,8 +147,12 @@ const StatusSheet = ({
            <ChevronRight size={18} color={Palette.textTertiary} />
          </TouchableOpacity>
 
-{/* Earnings/Money Card */}
-         <TouchableOpacity style={styles.statCard}>
+ {/* Earnings/Money Card */}
+          <TouchableOpacity 
+            style={styles.statCard}
+            onPress={handleEarningsPress}
+            activeOpacity={0.7}
+          >
            <View style={styles.iconCircle}>
              <Wallet size={20} color={Palette.textPrimary}/>
            </View>
@@ -132,6 +173,8 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,
+    left: 0,
+    right: 0,
     width: '100%',
     backgroundColor: Palette.background,
     borderTopLeftRadius: 28,
@@ -139,6 +182,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 30,
+    // Ensure the status sheet sits above the map and receives touches
+    zIndex: 10,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   dragHandle: {
     width: 40,
