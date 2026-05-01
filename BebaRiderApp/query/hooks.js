@@ -19,7 +19,17 @@ export const useProfile = () => {
 export const useEarnings = () => {
   return useQuery({
     queryKey: ['rider', 'earnings'],
-    queryFn: RiderService.getEarnings,
+    queryFn: async () => {
+      const data = await RiderService.getEarnings();
+      // Map backend fields to consistent frontend names
+      return {
+        today: parseFloat(data.daily_total) || 0,
+        thisWeek: parseFloat(data.this_week) || 0,
+        balance: parseFloat(data.balance) || 0,
+        completedTrips: data.completed_trips || 0,
+        waitFees: parseFloat(data.wait_fees_earned) || 0,
+      };
+    },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 };

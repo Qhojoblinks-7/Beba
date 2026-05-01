@@ -15,16 +15,16 @@ import BebaText from '../atoms/BebaText';
 const StatItem = ({label, value, subValue, highlight}) => {
     return (
         <View style={styles.container}>
-            <BebaText category="body3" color={Palette.placeholder} style={styles.label }>
+            <BebaText category="body3" color={Palette.textTertiary} style={styles.label }>
                 {label.toUpperCase()}
             </BebaText>
 
-            <BebaText category="h3" color={highlight ? Palette.success : Palette.textPrimary} style={styles.value}>
+            <BebaText category="h3" color={highlight ? Palette.secondary : Palette.textPrimary} style={styles.value}>
                 {value}
             </BebaText>
 
             {subValue && (
-                <BebaText category="body3" color={Palette.placeholder} style={styles.subValue}>
+                <BebaText category="body3" color={Palette.textTertiary} style={styles.subValue}>
                     {subValue}
                 </BebaText>
             )}

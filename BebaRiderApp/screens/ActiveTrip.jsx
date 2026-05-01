@@ -4,7 +4,10 @@ import { Map, Phone, MessageSquare, MapPin, User, Package, Bike, CheckCircle, Fl
 
 // Theme & Custom Hooks
 import { Palette, Spacing } from '../constants/theme';
-import { useOrder, ORDER_STATUS } from '../context/OrderContext';
+import { ORDER_STATUS } from '../constants/orderConstants';
+import { BASE_FARE, DISTANCE_RATE } from '../constants/pricing';
+import { useActiveOrder, useStartPickup, useCompleteOrder, useRequestReturn } from '../query/hooks';
+import { useLocation } from '../hooks/useLocation';
 import { useWaitTimer } from '../hooks/useWaitTimer';
 
 // Components
@@ -13,320 +16,331 @@ import BebaMapView from '../components/organisms/MapView';
 import StatItem from '../components/molecules/StatItem';
 
 const ActiveTrip = ({ route, navigation }) => {
-    const {
-        activeOrder,
-        orderStatus,
-        startPickup,
-        requestReturnItem,
-        BASE_FARE,
-        DISTANCE_RATE,
-    } = useOrder();
+  // TanStack Query
+  const { data: activeOrder, isLoading: isLoadingOrder } = useActiveOrder();
+  const startPickupMutation = useStartPickup();
+  const requestReturnMutation = useRequestReturn();
+  const completeOrderMutation = useCompleteOrder();
 
-    // Derive order details from activeOrder with fallbacks
-    const contactName = activeOrder?.customer?.first_name || "Customer";
-    const phoneNumber = activeOrder?.customer?.phone_number || "";
-    const address = activeOrder?.dropoff_address || activeOrder?.delivery_address || "Delivery address";
-    const gateCode = activeOrder?.gate_code || "";
-    const additionalNote = activeOrder?.notes || "";
-    const orderIdDisplay = activeOrder?.id || "#BEBA-000";
-    const role = activeOrder?.role || "SENDER";
-    const itemCount = activeOrder?.item_count || 0;
-    const distanceVal = activeOrder?.distance ? parseFloat(activeOrder.distance) : 0;
-    const distanceText = distanceVal > 0 ? `${distanceVal} mi` : "";
-    const etaMinutesVal = activeOrder?.estimated_delivery_time ? Number(activeOrder.estimated_delivery_time) : 0;
-    const etaText = etaMinutesVal > 0 ? `${etaMinutesVal} min` : "";
-    const category = activeOrder?.category?.toUpperCase() || "PARCEL";
-    const stopText = "1/1"; // Default for single-stop delivery
+  // Location hook
+  const { location } = useLocation();
 
-    const [isArrived, setIsArrived] = useState(false);
-    const [isExpanded, setIsExpanded] = useState(false);
-    
-    const sheetAnim = useRef(new Animated.Value(0)).current;
-    const dragY = useRef(0);
-    
-    // Determine trip started from orderStatus
-    const tripStarted = orderStatus === ORDER_STATUS.IN_TRANSIT;
+  // Derive order details from activeOrder with fallbacks
+  const contactName = activeOrder?.customer?.first_name || "Customer";
+  const phoneNumber = activeOrder?.customer?.phone_number || "";
+  const address = activeOrder?.dropoff_address || activeOrder?.delivery_address || "Delivery address";
+  const gateCode = activeOrder?.gate_code || "";
+  const additionalNote = activeOrder?.notes || "";
+  const orderIdDisplay = activeOrder?.id || "#BEBA-000";
+  const role = activeOrder?.role || "SENDER";
+  const itemCount = activeOrder?.item_count || 0;
+  const distanceVal = activeOrder?.distance ? parseFloat(activeOrder.distance) : 0;
+  const distanceText = distanceVal > 0 ? `${distanceVal} mi` : "";
+  const etaMinutesVal = activeOrder?.estimated_delivery_time ? Number(activeOrder.estimated_delivery_time) : 0;
+  const etaText = etaMinutesVal > 0 ? `${etaMinutesVal} min` : "";
+  const category = activeOrder?.category?.toUpperCase() || "PARCEL";
+  const stopText = "1/1"; // Default for single-stop delivery
 
-    // Use wait timer hook with category and arrival status
-    const { formatTime, waitFee, canReturn } = useWaitTimer(category, isArrived);
+  // Determine trip started from order status
+  const tripStarted = activeOrder?.status === ORDER_STATUS.IN_TRANSIT;
 
-    // Compute earnings breakdown
-    const distanceFare = (activeOrder && distanceVal > 0) ? distanceVal * DISTANCE_RATE : 0;
-    const totalEstimated = (BASE_FARE + distanceFare + waitFee).toFixed(2);
+  // Use wait timer hook with category and arrival status
+  const { formatTime, waitFee, canReturn } = useWaitTimer(category, tripStarted);
 
-    const handleCall = () => Linking.openURL(`tel:${phoneNumber}`);
-    
-    const handleNavigate = () => {
-        const lat = MOCK_REGION.latitude;
-        const lng = MOCK_REGION.longitude;
-        const url = Platform.OS === 'ios' 
-            ? `maps:0,0?q=${address}`
-            : `google.navigation:q=${lat},${lng}`;
-        Linking.openURL(url).catch(() => {
-            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
-        });
-    };
+  // Compute earnings breakdown
+  const distanceFare = (activeOrder && distanceVal > 0) ? distanceVal * DISTANCE_RATE : 0;
+  const totalEstimated = (BASE_FARE + distanceFare + waitFee).toFixed(2);
 
-    const handleStartTrip = async () => {
-        try {
-            await startPickup(activeOrder.id);
-        } catch (error) {
-            console.error("Failed to start trip:", error);
-            // Optional: show alert to user
-        }
-    };
-
-    const handleArrive = () => {
-        setIsArrived(true);
-    };
-
-    const handleCompleteDelivery = () => {
-        navigation.navigate('QRScanner', { orderId: activeOrder.id });
-    };
-
-    const handleReturnItem = async () => {
-        try {
-            await requestReturnItem(activeOrder.id);
-        } catch (error) {
-            console.error("Return item failed:", error);
-        }
-    };
-
-    const expandSheet = () => {
-        setIsExpanded(true);
-        Animated.spring(sheetAnim, {
-            toValue: 1,
-            useNativeDriver: false,
-            tension: 60,
-            friction: 10,
-        }).start();
-    };
-
-    const collapseSheet = () => {
-        setIsExpanded(false);
-        Animated.spring(sheetAnim, {
-            toValue: 0,
-            useNativeDriver: false,
-            tension: 60,
-            friction: 10,
-        }).start();
-    };
-
-    const panResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (evt, gestureState) => {
-                return Math.abs(gestureState.dy) > 5 && gestureState.moveY < 80;
-            },
-            onPanResponderMove: (evt, gestureState) => {
-                dragY.current = gestureState.dy;
-            },
-            onPanResponderRelease: (evt, gestureState) => {
-                const dragThreshold = 80;
-                if (gestureState.dy < -dragThreshold) {
-                    expandSheet();
-                } else if (gestureState.dy > dragThreshold) {
-                    collapseSheet();
-                } else {
-                    Animated.spring(sheetAnim, {
-                        toValue: isExpanded ? 1 : 0,
-                        useNativeDriver: false,
-                        tension: 60,
-                        friction: 10,
-                    }).start();
-                }
-                dragY.current = 0;
-            },
-        })
-    ).current;
-
-    const sheetHeight = sheetAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: ['42%', '88%'],
+  const handleCall = () => Linking.openURL(`tel:${phoneNumber}`);
+  
+  const handleNavigate = () => {
+    const lat = MOCK_REGION.latitude;
+    const lng = MOCK_REGION.longitude;
+    const url = Platform.OS === 'ios' 
+        ? `maps:0,0?q=${address}`
+        : `google.navigation:q=${lat},${lng}`;
+    Linking.openURL(url).catch(() => {
+        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
     });
+  };
 
-    return (
-        <View style={styles.container}>
-            <BebaMapView region={MOCK_REGION} />
+  const handleStartTrip = async () => {
+    if (!activeOrder?.id || !location) return;
+    try {
+      await startPickupMutation.mutateAsync({
+        orderId: activeOrder.id,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+    } catch (error) {
+      console.error("Failed to start trip:", error);
+    }
+  };
 
-            <Animated.View style={[styles.bottomSheet, { height: sheetHeight }]}>
-                <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
-                    <View style={styles.dragHandle} />
-                </View>
+  const handleArrive = () => {
+    // This just sets local UI state - arrived status
+    // The actual IN_TRANSIT status comes from useActiveOrder query
+    // We could add a local state for UI purposes
+  };
 
-                <ScrollView 
-                    style={styles.sheetContent}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.sheetInner}
-                    scrollEnabled={isExpanded}
-                    nestedScrollEnabled={false}
-                >
-                    <View style={styles.headerSection}>
-                        <View style={styles.avatarContainer}>
-                            <View style={styles.avatar}>
-                                <User size={28} color={Palette.gray400} />
-                                <View style={[styles.statusDot, { backgroundColor: tripStarted ? Palette.success : Palette.accent }]} />
-                            </View>
-                        </View>
-                        
-                        <View style={styles.headerInfo}>
-                            <BebaText category="h2" color={Palette.textPrimary} style={styles.bold}>{contactName}</BebaText>
-                            <View style={styles.headerMeta}>
-                                <View style={styles.roleBadge}>
-                                    <BebaText category="body3" color={Palette.primary} style={styles.bold}>{role.toUpperCase()}</BebaText>
-                                </View>
-                                <BebaText category="body2" color={Palette.gray500}>{orderIdDisplay}</BebaText>
-                            </View>
-                        </View>
+  const handleCompleteDelivery = () => {
+    if (activeOrder?.id) {
+      navigation.navigate('QRScanner', { orderId: activeOrder.id });
+    }
+  };
 
-                        <TouchableOpacity style={styles.callBtn} onPress={handleCall} activeOpacity={0.8}>
-                            <Phone size={22} color={Palette.primary} />
-                        </TouchableOpacity>
-                    </View>
+  const handleReturnItem = async () => {
+    if (!activeOrder?.id) return;
+    try {
+      await requestReturnMutation.mutateAsync(activeOrder.id);
+    } catch (error) {
+      console.error("Return item failed:", error);
+    }
+  };
 
-                    {/* Stats Bar with slot-based equal spacing */}
-                    <View style={styles.statsBar}>
-                        <View style={styles.statSlot}>
-                            <StatItem label="Stop" value={stopText} highlight />
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statSlot}>
-                            <StatItem label="ETA" value={etaText} />
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statSlot}>
-                            <StatItem label="Distance" value={distanceText} />
-                        </View>
-                    </View>
+  const [isArrived, setIsArrived] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const sheetAnim = useRef(new Animated.Value(0)).current;
+  const dragY = useRef(0);
+  
+  const expandSheet = () => {
+    setIsExpanded(true);
+    Animated.spring(sheetAnim, {
+      toValue: 1,
+      useNativeDriver: false,
+      tension: 60,
+      friction: 10,
+    }).start();
+  };
 
-                    <View style={styles.actionsSection}>
-                        <TouchableOpacity 
-                            style={styles.navButton}
-                            activeOpacity={0.8}
-                            onPress={handleNavigate}
-                        >
-                            <Map size={35} color={Palette.background} />
-                        </TouchableOpacity>
-                        
-                        <View style={styles.contactButtons}>
-                            <TouchableOpacity 
-                                style={styles.contactBtn}
-                                activeOpacity={0.8}
-                                onPress={handleCall}
-                            >
-                                <Phone size={22} color={Palette.primary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={styles.contactBtn}
-                                activeOpacity={0.8}
-                            >
-                                <MessageSquare size={22} color={Palette.primary} />
-                            </TouchableOpacity>
-                        </View>
+  const collapseSheet = () => {
+    setIsExpanded(false);
+    Animated.spring(sheetAnim, {
+      toValue: 0,
+      useNativeDriver: false,
+      tension: 60,
+      friction: 10,
+    }).start();
+  };
 
-                        {orderStatus === ORDER_STATUS.PICKED_UP ? (
-                            <TouchableOpacity 
-                                style={styles.startButton}
-                                activeOpacity={0.8}
-                                onPress={handleStartTrip}
-                            >
-                                <Bike size={35} color={Palette.background} />
-                            </TouchableOpacity>
-                        ) : orderStatus === ORDER_STATUS.IN_TRANSIT && !isArrived ? (
-                            <TouchableOpacity 
-                                style={styles.arriveButton}
-                                activeOpacity={0.8}
-                                onPress={handleArrive}
-                            >
-                                <Flag size={35} color={Palette.background} />
-                            </TouchableOpacity>
-                        ) : (
-                            <View style={styles.activeStatus}>
-                                <View style={styles.activeDot} />
-                            </View>
-                        )}
-                    </View>
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+          return Math.abs(gestureState.dy) > 5 && gestureState.moveY < 80;
+      },
+      onPanResponderMove: (evt, gestureState) => {
+          dragY.current = gestureState.dy;
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+          const dragThreshold = 80;
+          if (gestureState.dy < -dragThreshold) {
+              expandSheet();
+          } else if (gestureState.dy > dragThreshold) {
+              collapseSheet();
+          } else {
+              Animated.spring(sheetAnim, {
+                  toValue: isExpanded ? 1 : 0,
+                  useNativeDriver: false,
+                  tension: 60,
+                  friction: 10,
+              }).start();
+          }
+          dragY.current = 0;
+      },
+    })
+  ).current;
 
-                    <View style={styles.card}>
-                        <BebaText category="body3" color={Palette.gray400} style={styles.cardLabel}>DELIVER TO</BebaText>
-                        <BebaText category="body2" color={Palette.textPrimary} style={[styles.bold, styles.addressText]} numberOfLines={isExpanded ? undefined : 2}>
-                            {address}
-                        </BebaText>
-                        {gateCode && (
-                            <View style={styles.gateBadge}>
-                                <BebaText category="body3" color={Palette.accent} style={styles.bold}>GATE CODE: {gateCode}</BebaText>
-                            </View>
-                        )}
-                    </View>
+  const sheetHeight = sheetAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['42%', '88%'],
+  });
 
-                    {(itemCount > 0 || additionalNote) && (
-                        <View style={styles.card}>
-                            <BebaText category="body3" color={Palette.gray400} style={styles.cardLabel}>DELIVERY DETAILS</BebaText>
-                            
-                            {itemCount > 0 && (
-                                <View style={styles.itemsRow}>
-                                    <View style={styles.itemIcon}>
-                                        <Package size={18} color={Palette.primary} />
-                                    </View>
-                                    <View>
-                                        <BebaText category="body2" color={Palette.textPrimary} style={styles.bold}>
-                                            {itemCount} item{itemCount > 1 ? 's' : ''}
-                                        </BebaText>
-                                        <BebaText category="body3" color={Palette.gray500}>Verify before delivery</BebaText>
-                                    </View>
-                                </View>
-                            )}
+  return (
+    <View style={styles.container}>
+      <BebaMapView region={MOCK_REGION} />
 
-                            {additionalNote && (
-                                <View style={styles.noteBox}>
-                                    <BebaText category="body3" color={Palette.gray400} style={styles.bold}>CUSTOMER NOTE</BebaText>
-                                    <BebaText category="body2" color={Palette.textPrimary} style={styles.noteText}>
-                                        {additionalNote}
-                                    </BebaText>
-                                </View>
-                            )}
-                        </View>
-                    )}
+      <Animated.View style={[styles.bottomSheet, { height: sheetHeight }]}>
+          <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
+              <View style={styles.dragHandle} />
+          </View>
 
-                    <View style={[styles.card, styles.earningsCard]}>
-                        <View>
-                            <BebaText category="body3" color={Palette.gray400}>ESTIMATED PAYOUT</BebaText>
-                            <BebaText category="h2" color={Palette.primary} style={styles.bold}>GH₵ {totalEstimated}</BebaText>
-                        </View>
-                        {isArrived && (
-                            <View style={styles.waitFee}>
-                                <BebaText category="body3" color={Palette.accent}>WAIT FEE</BebaText>
-                                <BebaText category="h3" color={Palette.accent} style={styles.bold}>GH₵ {waitFee}</BebaText>
-                                <BebaText category="body3" color={Palette.gray500}>{formatTime}</BebaText>
-                            </View>
-                        )}
-                    </View>
+          <ScrollView 
+              style={styles.sheetContent}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.sheetInner}
+              scrollEnabled={isExpanded}
+              nestedScrollEnabled={false}
+          >
+              <View style={styles.headerSection}>
+                  <View style={styles.avatarContainer}>
+                      <View style={styles.avatar}>
+                          <User size={28} color={Palette.gray400} />
+                          <View style={[styles.statusDot, { backgroundColor: tripStarted ? Palette.success : Palette.accent }]} />
+                      </View>
+                  </View>
+                  
+                  <View style={styles.headerInfo}>
+                      <BebaText category="h2" color={Palette.textPrimary} style={styles.bold}>{contactName}</BebaText>
+                      <View style={styles.headerMeta}>
+                          <View style={styles.roleBadge}>
+                              <BebaText category="body3" color={Palette.primary} style={styles.bold}>{role.toUpperCase()}</BebaText>
+                          </View>
+                          <BebaText category="body2" color={Palette.gray500}>{orderIdDisplay}</BebaText>
+                      </View>
+                  </View>
 
-                     {isArrived && (
-                         <TouchableOpacity 
-                             style={styles.completeButton}
-                             activeOpacity={0.8}
-                             onPress={handleCompleteDelivery}
-                         >
-                             <CheckCircle size={32} color={Palette.background} />
-                         </TouchableOpacity>
-                     )}
+                  <TouchableOpacity style={styles.callBtn} onPress={handleCall} activeOpacity={0.8}>
+                      <Phone size={22} color={Palette.primary} />
+                  </TouchableOpacity>
+              </View>
 
-                     {isArrived && canReturn && (
-                         <TouchableOpacity 
-                             style={styles.returnButton}
-                             activeOpacity={0.8}
-                             onPress={handleReturnItem}
-                         >
-                             <BebaText category="h4" color={Palette.white}>Return Item</BebaText>
-                         </TouchableOpacity>
-                     )}
+              {/* Stats Bar with slot-based equal spacing */}
+              <View style={styles.statsBar}>
+                  <View style={styles.statSlot}>
+                      <StatItem label="Stop" value={stopText} highlight />
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statSlot}>
+                      <StatItem label="ETA" value={etaText} />
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statSlot}>
+                      <StatItem label="Distance" value={distanceText} />
+                  </View>
+              </View>
 
-                     <View style={styles.bottomSpacer} />
-                </ScrollView>
-            </Animated.View>
-        </View>
-    );
+              <View style={styles.actionsSection}>
+                  <TouchableOpacity 
+                      style={styles.navButton}
+                      activeOpacity={0.8}
+                      onPress={handleNavigate}
+                  >
+                      <Map size={35} color={Palette.background} />
+                  </TouchableOpacity>
+                  
+                  <View style={styles.contactButtons}>
+                      <TouchableOpacity 
+                          style={styles.contactBtn}
+                          activeOpacity={0.8}
+                          onPress={handleCall}
+                      >
+                          <Phone size={22} color={Palette.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                          style={styles.contactBtn}
+                          activeOpacity={0.8}
+                      >
+                          <MessageSquare size={22} color={Palette.primary} />
+                      </TouchableOpacity>
+                  </View>
+
+                  {!tripStarted && activeOrder?.status === ORDER_STATUS.PICKED_UP ? (
+                      <TouchableOpacity 
+                          style={styles.startButton}
+                          activeOpacity={0.8}
+                          onPress={handleStartTrip}
+                          disabled={startPickupMutation.isPending}
+                      >
+                          <Bike size={35} color={Palette.background} />
+                      </TouchableOpacity>
+                  ) : tripStarted && !isArrived ? (
+                      <TouchableOpacity 
+                          style={styles.arriveButton}
+                          activeOpacity={0.8}
+                          onPress={handleArrive}
+                      >
+                          <Flag size={35} color={Palette.background} />
+                      </TouchableOpacity>
+                  ) : (
+                      <View style={styles.activeStatus}>
+                          <View style={styles.activeDot} />
+                      </View>
+                  )}
+              </View>
+
+              <View style={styles.card}>
+                  <BebaText category="body3" color={Palette.gray400} style={styles.cardLabel}>DELIVER TO</BebaText>
+                  <BebaText category="body2" color={Palette.textPrimary} style={[styles.bold, styles.addressText]} numberOfLines={isExpanded ? undefined : 2}>
+                      {address}
+                  </BebaText>
+                  {gateCode && (
+                      <View style={styles.gateBadge}>
+                          <BebaText category="body3" color={Palette.accent} style={styles.bold}>GATE CODE: {gateCode}</BebaText>
+                      </View>
+                  )}
+              </View>
+
+              {(itemCount > 0 || additionalNote) && (
+                  <View style={styles.card}>
+                      <BebaText category="body3" color={Palette.gray400} style={styles.cardLabel}>DELIVERY DETAILS</BebaText>
+                      
+                      {itemCount > 0 && (
+                          <View style={styles.itemsRow}>
+                              <View style={styles.itemIcon}>
+                                  <Package size={18} color={Palette.primary} />
+                              </View>
+                              <View>
+                                  <BebaText category="body2" color={Palette.textPrimary} style={styles.bold}>
+                                      {itemCount} item{itemCount > 1 ? 's' : ''}
+                                  </BebaText>
+                                  <BebaText category="body3" color={Palette.gray500}>Verify before delivery</BebaText>
+                              </View>
+                          </View>
+                      )}
+
+                      {additionalNote && (
+                          <View style={styles.noteBox}>
+                              <BebaText category="body3" color={Palette.gray400} style={styles.bold}>CUSTOMER NOTE</BebaText>
+                              <BebaText category="body2" color={Palette.textPrimary} style={styles.noteText}>
+                                  {additionalNote}
+                              </BebaText>
+                          </View>
+                      )}
+                  </View>
+              )}
+
+              <View style={[styles.card, styles.earningsCard]}>
+                  <View>
+                      <BebaText category="body3" color={Palette.gray400}>ESTIMATED PAYOUT</BebaText>
+                      <BebaText category="h2" color={Palette.primary} style={styles.bold}>GH₵ {totalEstimated}</BebaText>
+                  </View>
+                  {tripStarted && (
+                      <View style={styles.waitFee}>
+                          <BebaText category="body3" color={Palette.accent}>WAIT FEE</BebaText>
+                          <BebaText category="h3" color={Palette.accent} style={styles.bold}>GH₵ {waitFee}</BebaText>
+                          <BebaText category="body3" color={Palette.gray500}>{formatTime}</BebaText>
+                      </View>
+                  )}
+              </View>
+
+               {tripStarted && (
+                   <TouchableOpacity 
+                       style={styles.completeButton}
+                       activeOpacity={0.8}
+                       onPress={handleCompleteDelivery}
+                   >
+                       <CheckCircle size={32} color={Palette.background} />
+                   </TouchableOpacity>
+               )}
+
+               {tripStarted && canReturn && (
+                   <TouchableOpacity 
+                       style={styles.returnButton}
+                       activeOpacity={0.8}
+                       onPress={handleReturnItem}
+                       disabled={requestReturnMutation.isPending}
+                   >
+                       <BebaText category="h4" color={Palette.white}>Return Item</BebaText>
+                   </TouchableOpacity>
+               )}
+
+              <View style={styles.bottomSpacer} />
+          </ScrollView>
+      </Animated.View>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

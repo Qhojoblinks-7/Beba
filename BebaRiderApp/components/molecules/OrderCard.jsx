@@ -34,7 +34,7 @@ const OrderCard = ({ order, onAccept, onPress }) => {
     }
   };
 
-  // Get category color for priority badge
+// Get category color for priority badge
   const getCategoryColor = () => {
     switch (category?.toUpperCase()) {
       case 'FOOD':
@@ -79,9 +79,9 @@ const OrderCard = ({ order, onAccept, onPress }) => {
           <BebaText category="h4" color={Palette.textPrimary}>
             {id || `Order #${order?.id}`}
           </BebaText>
-          <View style={styles.timeContainer}>
-            <Clock size={12} color={Palette.gray500} />
-            <BebaText category="body3" color={Palette.gray500} style={styles.timeText}>
+<View style={styles.timeContainer}>
+            <Clock size={12} color={Palette.textSecondary} />
+            <BebaText category="body3" color={Palette.textSecondary} style={styles.timeText}>
               {getTimeAgo()}
             </BebaText>
           </View>
@@ -89,7 +89,7 @@ const OrderCard = ({ order, onAccept, onPress }) => {
 
         <View style={styles.addressSection}>
           <View style={styles.addressRow}>
-            <MapPin size={14} color={Palette.success} />
+            <MapPin size={14} color={Palette.secondary} />
             <BebaText category="body2" numberOfLines={1} style={styles.addressText}>
               {pickup_address || 'Pickup location'}
             </BebaText>
@@ -103,7 +103,7 @@ const OrderCard = ({ order, onAccept, onPress }) => {
         </View>
 
         <View style={styles.footerRow}>
-          <BebaText category="body3" color={Palette.gray500}>
+          <BebaText category="body3" color={Palette.textSecondary}>
             {customer?.first_name || 'Customer'} • {item_count || 1} item{item_count > 1 ? 's' : ''}
           </BebaText>
         </View>

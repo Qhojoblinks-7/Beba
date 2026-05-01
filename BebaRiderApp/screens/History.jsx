@@ -24,8 +24,8 @@ const History = ({ navigation }) => {
   
   const renderHeader = () => (
     <View style={styles.header}>
-      <BebaText category="h1" color={Palette.black}>Activity</BebaText>
-      <BebaText category="body3" color={Palette.gray500}>View your completed deliveries</BebaText>
+<BebaText category="h1" color={Palette.textPrimary}>Activity</BebaText>
+      <BebaText category="body3" color={Palette.textSecondary}>View your completed deliveries</BebaText>
     </View>
   );
 
@@ -52,7 +52,7 @@ const History = ({ navigation }) => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <BebaText category="body2" color={Palette.gray400}>No trips found yet today.</BebaText>
+<BebaText category="body2" color={Palette.textTertiary}>No trips found yet today.</BebaText>
           </View>
         }
       />

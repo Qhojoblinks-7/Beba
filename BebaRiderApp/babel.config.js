@@ -1,15 +1,10 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [
-      ['babel-preset-expo', {
-        reanimated: true,
-        worklets: true,
-      }],
-    ],
+    presets: ['babel-preset-expo'],
     plugins: [
-      // Optional: If you want to use the new JSX transform
-      ['@babel/plugin-transform-react-jsx', { runtime: 'automatic' }],
+      'react-native-worklets/plugin',
+      // Ensure proper JSX transformation for React Native
     ],
   };
 };

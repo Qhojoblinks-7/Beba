@@ -1,20 +1,21 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Palette, Spacing } from '../../constants/theme';
-import { useOrder, RIDER_STATUS } from '../../context/OrderContext';
+import { RIDER_STATUS } from '../../constants/orderConstants';
 import BebaText from '../atoms/BebaText';
 import BebaButton from '../atoms/BebaButton';
 import { Star, Wallet, Settings2, ChevronRight } from 'lucide-react-native';
 
-const StatusSheet = ({ isOnline, onToggleStatus, navigation, riderStatus, earnings }) => {
-  const { availableOrders, activeOrder, isLoading } = useOrder();
-
-  const handleDeliveriesPress = () => {
-    if (navigation && !activeOrder) {
-      navigation.navigate('DeliveryTracking');
-    }
-  };
-
+const StatusSheet = ({ 
+  isOnline, 
+  onToggleStatus, 
+  navigation, 
+  riderStatus, 
+  earnings, 
+  availableOrdersCount, 
+  hasActiveOrder,
+  isLoading 
+}) => {
   // Get the status text
   const getStatusText = () => {
     switch (riderStatus) {
@@ -27,11 +28,11 @@ const StatusSheet = ({ isOnline, onToggleStatus, navigation, riderStatus, earnin
     }
   };
 
-  // Get status subtitle
+// Get status subtitle
   const getStatusSubtitle = () => {
     switch (riderStatus) {
       case RIDER_STATUS.ONLINE:
-        return `${availableOrders.length} orders available`;
+        return `${availableOrdersCount} orders available`;
       case RIDER_STATUS.ON_TRIP:
         return 'Delivery in progress';
       default:
@@ -42,12 +43,19 @@ const StatusSheet = ({ isOnline, onToggleStatus, navigation, riderStatus, earnin
   // Get deliveries count
   const getDeliveriesCount = () => {
     return earnings?.completedTrips || 0;
-  };
+   };
 
-  // Get earnings amount
+  // Get earnings amount formatted
   const getEarningsAmount = () => {
     const amount = earnings?.today || 0;
     return `GH₵ ${amount.toFixed(2)}`;
+  };
+
+  // Navigate to delivery tracking screen (only if no active order)
+  const handleDeliveriesPress = () => {
+    if (navigation && !hasActiveOrder) {
+      navigation.navigate('DeliveryTracking');
+    }
   };
 
   return (
@@ -56,17 +64,17 @@ const StatusSheet = ({ isOnline, onToggleStatus, navigation, riderStatus, earnin
       <View style={styles.dragHandle} />
 
       {/* 2. Header with Status */}
-      <View style={styles.headerRow}>
+<View style={styles.headerRow}>
         <View>
-          <BebaText category="h1" color={Palette.black} style={styles.bold}>
+          <BebaText category="h1" color={Palette.textPrimary} style={styles.bold}>
             {getStatusText()}
           </BebaText>
-          <BebaText category="body3" color={Palette.gray600}>
+          <BebaText category="body3" color={Palette.textSecondary}>
             {getStatusSubtitle()}
           </BebaText>
         </View>
         <TouchableOpacity style={styles.settingsBtn}>
-          <Settings2 size={24} color={Palette.black} />
+          <Settings2 size={24} color={Palette.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -86,36 +94,36 @@ const StatusSheet = ({ isOnline, onToggleStatus, navigation, riderStatus, earnin
       <View style={styles.statsRow}>
          {/* Priority Card / Deliveries */}
          <TouchableOpacity 
-          style={styles.statCard} 
-          onPress={handleDeliveriesPress}
-          disabled={!!activeOrder}
-        >
-          <View style={styles.iconCircle}>
-            <Star size={20} color={Palette.black} />
-          </View>
-          <View style={styles.statInfo}>
-            <BebaText category="body4" color={Palette.gray500}>Deliveries</BebaText>
-            <BebaText category="h3" color={Palette.black} style={styles.bold}>
-              {getDeliveriesCount()}
-            </BebaText>
-          </View>
-          <ChevronRight size={18} color={Palette.gray400} />
-        </TouchableOpacity>
+           style={styles.statCard} 
+           onPress={handleDeliveriesPress}
+           disabled={hasActiveOrder}
+         >
+<View style={styles.iconCircle}>
+             <Star size={20} color={Palette.textPrimary} />
+           </View>
+           <View style={styles.statInfo}>
+             <BebaText category="body4" color={Palette.textSecondary}>Deliveries</BebaText>
+             <BebaText category="h3" color={Palette.textPrimary} style={styles.bold}>
+               {getDeliveriesCount()}
+             </BebaText>
+           </View>
+           <ChevronRight size={18} color={Palette.textTertiary} />
+         </TouchableOpacity>
 
-        {/* Earnings/Money Card */}
-        <TouchableOpacity style={styles.statCard}>
-          <View style={styles.iconCircle}>
-            <Wallet size={20} color={Palette.black}/>
-          </View>
-          <View style={styles.statInfo}>
-            <BebaText category="body4" color={Palette.gray500}>Today</BebaText>
-            <BebaText category="h3" color={Palette.black} style={styles.bold}>
-              {getEarningsAmount()}
-            </BebaText>
-          </View>
-          <ChevronRight size={18} color={Palette.gray400} />
-        </TouchableOpacity>
-      </View>
+{/* Earnings/Money Card */}
+         <TouchableOpacity style={styles.statCard}>
+           <View style={styles.iconCircle}>
+             <Wallet size={20} color={Palette.textPrimary}/>
+           </View>
+           <View style={styles.statInfo}>
+             <BebaText category="body4" color={Palette.textSecondary}>Today</BebaText>
+             <BebaText category="h3" color={Palette.textPrimary} style={styles.bold}>
+               {getEarningsAmount()}
+             </BebaText>
+           </View>
+           <ChevronRight size={18} color={Palette.textTertiary} />
+         </TouchableOpacity>
+       </View>
     </View>
   );
 };
@@ -135,7 +143,7 @@ const styles = StyleSheet.create({
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: Palette.gray400,
+    backgroundColor: Palette.textTertiary,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -151,19 +159,19 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Palette.gray200,
+    borderColor: Palette.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   yellowButton: {
-    backgroundColor: '#FFD700', // Bright yellow from image
+    backgroundColor: Palette.accent,
     borderRadius: 16,
     height: 64,
     marginBottom: 16,
     justifyContent: 'center',
   },
   buttonText: {
-    color: Palette.black,
+    color: Palette.textPrimary,
     fontWeight: '600',
   },
   statsRow: {
@@ -174,7 +182,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F2F2', // Light gray background from image
+    backgroundColor: Palette.background,
     borderRadius: 16,
     padding: 12,
   },
@@ -182,7 +190,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: Palette.gray200,
+    backgroundColor: Palette.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,

@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center', // Added this to center the text
     paddingHorizontal: Spacing.padding,
-    shadowColor: Palette.black,
+shadowColor: Palette.textPrimary,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,

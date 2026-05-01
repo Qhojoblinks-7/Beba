@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Location from 'expo-location';
-import { RiderService } from '../api/services';
+import { useUpdateLocation } from '../query/hooks';
 
 /**
  * useLocation Hook
@@ -60,56 +60,58 @@ export const useLocation = () => {
     }
   }, [permissionStatus, requestPermissions]);
   
-  // Start continuous location tracking
-  const startLocationTracking = useCallback(async () => {
-    try {
-      const hasPermission = permissionStatus === 'granted' || await requestPermissions();
-      if (!hasPermission) {
-        setError('Location permission denied');
-        return false;
-      }
-      
-      // Start watching location
-      watchSubscription.current = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 5000, // Update every 5 seconds
-          distanceInterval: 10, // Or when moved 10 meters
-        },
-        (loc) => {
-          const locationData = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-            accuracy: loc.coords.accuracy,
-            timestamp: loc.timestamp,
-          };
-          setLocation(locationData);
-        }
-      );
-      
-      setIsTracking(true);
-      
-      // Also send periodic updates to backend
-      locationUpdateInterval.current = setInterval(async () => {
-        if (location) {
-          try {
-            await RiderService.updateLocation(location.latitude, location.longitude);
-          } catch (err) {
-            console.error('Error updating location to backend:', err);
-          }
-        }
-      }, 30000); // Send every 30 seconds
-      
-      // Get initial location
-      await getCurrentLocation();
-      
-      return true;
-    } catch (err) {
-      console.error('Error starting location tracking:', err);
-      setError(err.message);
-      return false;
-    }
-  }, [permissionStatus, requestPermissions, getCurrentLocation, location]);
+   // Start continuous location tracking
+   const startLocationTracking = useCallback(async () => {
+     try {
+       const hasPermission = permissionStatus === 'granted' || await requestPermissions();
+       if (!hasPermission) {
+         setError('Location permission denied');
+         return false;
+       }
+       
+       // Start watching location
+       watchSubscription.current = await Location.watchPositionAsync(
+         {
+           accuracy: Location.Accuracy.High,
+           timeInterval: 5000, // Update every 5 seconds
+           distanceInterval: 10, // Or when moved 10 meters
+         },
+         (loc) => {
+           const locationData = {
+             latitude: loc.coords.latitude,
+             longitude: loc.coords.longitude,
+             accuracy: loc.coords.accuracy,
+             timestamp: loc.timestamp,
+           };
+           setLocation(locationData);
+         }
+       );
+       
+       setIsTracking(true);
+       
+       // Also send periodic updates to backend using TanStack Query mutation
+       const updateLocationMutation = useUpdateLocation();
+       locationUpdateInterval.current = setInterval(() => {
+         if (location) {
+           updateLocationMutation.mutate({
+             latitude: location.latitude,
+             longitude: location.longitude,
+             accuracy: location.accuracy,
+             timestamp: location.timestamp,
+           });
+         }
+       }, 5000);
+       
+       // Get initial location
+       await getCurrentLocation();
+       
+       return true;
+     } catch (err) {
+       console.error('Error starting location tracking:', err);
+       setError(err.message);
+       return false;
+     }
+   }, [permissionStatus, requestPermissions, getCurrentLocation, location]);
   
   // Stop location tracking
   const stopLocationTracking = useCallback(() => {

@@ -1,29 +1,61 @@
 import React from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Lock, Globe, MapPin, Bell, CreditCard, 
   Shield, Edit3, ChevronRight, LogOut 
 } from 'lucide-react-native';
+import { useProfile } from '../query/hooks';
 import BebaText from '../components/atoms/BebaText';
+import useAuthStore from '../store/useAuthStore';
 import { Palette, Spacing } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
-  const MenuOption = ({ icon: Icon, label, onPress }) => (
-    <TouchableOpacity style={styles.menuOption} onPress={onPress}>
-      <View style={styles.iconCircle}>
-        <Icon size={20} color={Palette.primary} />
-      </View>
-      <BebaText category="h4" color={Palette.textPrimary} style={styles.menuLabel}>
-        {label}
-      </BebaText>
-      <ChevronRight size={18} color={Palette.gray400} />
-    </TouchableOpacity>
-  );
+const MenuOption = ({ icon: Icon, label, onPress }) => (
+  <TouchableOpacity style={styles.menuOption} onPress={onPress}>
+    <View style={styles.iconCircle}>
+      <Icon size={20} color={Palette.primary} />
+    </View>
+    <BebaText category="h4" color={Palette.textPrimary} style={styles.menuLabel}>
+      {label}
+    </BebaText>
+    <ChevronRight size={18} color={Palette.gray400} />
+  </TouchableOpacity>
+);
 
 const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { logout } = useAuthStore();
+
+  // Fetch real profile data
+  const { data: profile, isLoading } = useProfile();
+
+  // Derive display values
+  const displayName = profile 
+    ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Rider'
+    : 'Rider';
+  const displayPhone = profile?.phone_number || '+233 24 000 0000';
+  const avatarUrl = profile?.profile_picture || `https://i.pravatar.cc/150?u=${profile?.id || 'rider'}`;
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: () => logout(),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -41,13 +73,17 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.riderProfileRow}>
             <View style={styles.avatarContainer}>
               <Image 
-                source={{ uri: 'https://i.pravatar.cc/150?u=kofi' }} 
+                source={{ uri: avatarUrl }} 
                 style={styles.avatar} 
               />
             </View>
             <View style={styles.riderDetails}>
-              <BebaText category="h3" color={Palette.white}>Kofi Mensah</BebaText>
-              <BebaText category="body4" color="rgba(255,255,255,0.8)">+233 24 722 7492</BebaText>
+              <BebaText category="h3" color={Palette.white}>
+                {isLoading ? 'Loading...' : displayName}
+              </BebaText>
+              <BebaText category="body4" color="rgba(255,255,255,0.8)">
+                {displayPhone}
+              </BebaText>
             </View>
           </View>
         </View>
@@ -67,7 +103,7 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.sectionCard}>
             <MenuOption icon={CreditCard} label="Payment Method" onPress={() => navigation.navigate('PaymentMethod')} />
             <MenuOption icon={Shield} label="Privacy Policy" onPress={() => navigation.navigate('PrivacyPolicy')} />
-            <MenuOption icon={LogOut} label="Log Out" />
+            <MenuOption icon={LogOut} label="Log Out" onPress={handleLogout} />
           </View>
 
         </View>

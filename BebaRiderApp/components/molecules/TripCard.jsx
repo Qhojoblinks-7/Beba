@@ -20,7 +20,7 @@ const TripCard = ({ destination, time, amount, type = "Food", onPress }) => {
       style={styles.container}
     >
       {/* Left Section: Icon & Category */}
-      <View style={styles.iconContainer}>
+<View style={styles.iconContainer}>
         <MapPin size={20} color={Palette.primary} />
       </View>
 
@@ -30,7 +30,7 @@ const TripCard = ({ destination, time, amount, type = "Food", onPress }) => {
           {destination}
         </BebaText>
         <View style={styles.subInfo}>
-          <Clock size={12} color={Palette.gray400} style={{ marginRight: 4 }} />
+          <Clock size={12} color={Palette.textTertiary} style={{ marginRight: 4 }} />
           <BebaText category="body3">
             {time} • {type}
           </BebaText>
@@ -42,7 +42,7 @@ const TripCard = ({ destination, time, amount, type = "Food", onPress }) => {
         <BebaText category="h3" color={Palette.primary}>
           {amount}
         </BebaText>
-        <ArrowRight size={16} color={Palette.gray500} />
+        <ArrowRight size={16} color={Palette.textTertiary} />
       </View>
     </TouchableOpacity>
   );

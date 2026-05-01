@@ -2,12 +2,16 @@ import React from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronRight } from 'lucide-react-native';
+import { useEarnings } from '../query/hooks';
 import { Palette, Spacing, Typography } from '../constants/theme';
 
 // Beba Components
 import BebaText from '../components/atoms/BebaText';
 import EarningsChart from '../components/organisms/EarningsChart';
 import DailyEarningsDetail from '../components/organisms/DailyEarningsDetail';
+
+// Mock weekly chart data (will be replaced with real API when available)
+// For now display last 7 days mock with day labels
 const weeklyData = [
   { x: 'Th', y: 127.18, date: 'Thursday, Apr 23' },
   { x: 'Fr', y: 358.78, date: 'Friday, Apr 24' },
@@ -20,7 +24,7 @@ const weeklyData = [
 
 /**
  * Mock detailed trip data for each day
- * In production, this would come from the API
+ * In production, this would come from the API via history endpoint
  */
 const dailyTripData = {
   'Thursday, Apr 23': {
@@ -96,35 +100,26 @@ const dailyTripData = {
     totalEarnings: 0,
     tripCount: 0,
     trips: [],
-    fees: {
-      cash: 0,
-      service: 0,
-      partner: 0,
-    },
+    fees: { cash: 0, service: 0, partner: 0 },
   },
   'Tuesday, Apr 28': {
     totalEarnings: 0,
     tripCount: 0,
     trips: [],
-    fees: {
-      cash: 0,
-      service: 0,
-      partner: 0,
-    },
+    fees: { cash: 0, service: 0, partner: 0 },
   },
   'Wednesday, Apr 29': {
     totalEarnings: 0,
     tripCount: 0,
     trips: [],
-    fees: {
-      cash: 0,
-      service: 0,
-      partner: 0,
-    },
+    fees: { cash: 0, service: 0, partner: 0 },
   },
 };
 
 const Earnings = ({ navigation }) => {
+  // TanStack Query - fetch real earnings data
+  const { data: earnings, isLoading } = useEarnings();
+
   const handleBarPress = (item, index) => {
     const detailData = dailyTripData[item.date];
     if (detailData) {
@@ -134,6 +129,12 @@ const Earnings = ({ navigation }) => {
       });
     }
   };
+
+  // Use real today earnings if available, otherwise 0
+  const todayEarnings = earnings?.today || 0;
+  const balance = earnings?.balance || 0;
+  const thisWeek = earnings?.thisWeek || 0;
+  const completedTrips = earnings?.completedTrips || 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -164,25 +165,43 @@ const Earnings = ({ navigation }) => {
             }
           }}
         >
-          <BebaText category="body1" style={styles.todayLabel}>Today</BebaText>
+<BebaText category="body1" style={styles.todayLabel}>Today</BebaText>
           <View style={styles.rightContent}>
-            <BebaText category="h3" style={styles.bold}>GHS {weeklyData[6].y}</BebaText>
-            <ChevronRight size={20} color={Palette.gray400} />
+            <BebaText category="h3" style={styles.bold}>
+              GHS {isLoading ? '...' : todayEarnings.toFixed(2)}
+            </BebaText>
+            <ChevronRight size={20} color={Palette.textTertiary} />
           </View>
         </TouchableOpacity>
 
         {/* 3. Balance Card */}
         <View style={styles.balanceCard}>
-          <View style={styles.balanceHeader}>
-            <BebaText category="body1" color={Palette.gray600}>Balance</BebaText>
-            <BebaText category="h2" style={styles.bold}>GHS 0.88</BebaText>
+<View style={styles.balanceHeader}>
+            <BebaText category="body1" color={Palette.textSecondary}>Balance</BebaText>
+            <BebaText category="h2" style={styles.bold}>
+              GHS {isLoading ? '...' : balance.toFixed(2)}
+            </BebaText>
           </View>
 
           <View style={styles.partnerSection}>
-            <BebaText category="body4" color={Palette.gray500}>Service partner</BebaText>
+            <BebaText category="body4" color={Palette.textSecondary}>Service partner</BebaText>
             <BebaText category="body2" style={styles.partnerName}>
               TOPKLASS 24/7 ENTERPRISE
             </BebaText>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <BebaText category="body3" color={Palette.textSecondary}>This week</BebaText>
+              <BebaText category="h4" color={Palette.textPrimary}>
+                GHS {isLoading ? '...' : thisWeek.toFixed(2)}
+              </BebaText>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <BebaText category="body3" color={Palette.textSecondary}>Trips</BebaText>
+              <BebaText category="h4" color={Palette.textPrimary}>{completedTrips}</BebaText>
+            </View>
           </View>
         </View>
 
@@ -204,7 +223,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.padding,
     backgroundColor: Palette.white,
     borderBottomWidth: 1,
-    borderBottomColor: Palette.gray200,
+    borderBottomColor: Palette.border,
   },
   headerTitle: {
     ...Typography.h1,
@@ -219,7 +238,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Palette.gray50,
+    backgroundColor: Palette.background,
     marginHorizontal: Spacing.padding,
     padding: Spacing.padding,
     borderRadius: Spacing.borderRadius,
@@ -235,7 +254,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   balanceCard: {
-    backgroundColor: Palette.gray50,
+    backgroundColor: Palette.background,
     marginHorizontal: Spacing.padding,
     marginTop: Spacing.padding,
     padding: Spacing.padding,
@@ -254,6 +273,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
     ...Typography.body2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.padding,
+    paddingTop: Spacing.padding,
+    borderTopWidth: 1,
+    borderTopColor: Palette.border,
+  },
+  statItem: {
+    flex: 1,
+    gap: 4,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: Palette.border,
+    marginHorizontal: Spacing.padding,
   },
   bold: {
     fontWeight: '700',

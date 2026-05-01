@@ -2,21 +2,30 @@ import React, { useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, Linking, RefreshControl } from 'react-native';
 import { ChevronLeft, MapPin, Box, ChevronRight, Phone, User, Loader } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useOrder, ORDER_STATUS, RIDER_STATUS } from '../context/OrderContext';
+import { useNearbyOrders, useAcceptOrder } from '../query/hooks';
+import useAppStore from '../store/useAppStore';
+import { RIDER_STATUS } from '../constants/orderConstants';
+import { useLocation } from '../hooks/useLocation';
 import BebaText from '../components/atoms/BebaText';
 import OrderCard from '../components/molecules/OrderCard';
 import { Palette, Spacing } from '../constants/theme';
 
 const DeliveryTrackingScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { 
-    availableOrders, 
-    isLoadingOrders, 
-    acceptOrder, 
-    fetchNearbyOrders,
-    riderStatus,
-    location,
-  } = useOrder();
+  
+  // State & Hooks
+  const { location } = useLocation();
+  const riderStatus = useAppStore((state) => state.riderStatus);
+  const setRiderStatus = useAppStore((state) => state.setRiderStatus);
+  
+  // TanStack Query
+  const { data: availableOrders = [], isLoading: isLoadingOrders, refetch: refetchNearbyOrders } = useNearbyOrders(
+    location?.latitude,
+    location?.longitude,
+    riderStatus === RIDER_STATUS.ONLINE && !!location
+  );
+  
+  const acceptOrderMutation = useAcceptOrder();
 
   // Destination mock coordinates for navigation
   const destinationCoords = location || { lat: 5.5500, lng: -0.1962 }; 
@@ -24,7 +33,6 @@ const DeliveryTrackingScreen = ({ navigation }) => {
   const handleNavigation = (address) => {
     const url = `google.navigation:q=${encodeURIComponent(address)}`;
     Linking.openURL(url).catch(err => {
-      // Fallback to web maps
       const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
       Linking.openURL(webUrl).catch(e => console.error("Couldn't load map", e));
     });
@@ -36,12 +44,14 @@ const DeliveryTrackingScreen = ({ navigation }) => {
 
   const handleAcceptOrder = useCallback(async (orderId) => {
     try {
-      await acceptOrder(orderId);
+      await acceptOrderMutation.mutateAsync(orderId);
+      // Update rider status to ON_TRIP
+      setRiderStatus(RIDER_STATUS.ON_TRIP);
       navigation.navigate('ActiveTrip');
     } catch (error) {
       console.error('Error accepting order:', error);
     }
-  }, [acceptOrder, navigation]);
+  }, [acceptOrderMutation, navigation, setRiderStatus]);
 
   const handleOrderPress = useCallback((order) => {
     // Show order details modal or navigate to detail screen
@@ -49,8 +59,8 @@ const DeliveryTrackingScreen = ({ navigation }) => {
   }, []);
 
   const handleRefresh = useCallback(() => {
-    fetchNearbyOrders();
-  }, [fetchNearbyOrders]);
+    refetchNearbyOrders();
+  }, [refetchNearbyOrders]);
 
   // Show empty state if not online
   if (riderStatus === RIDER_STATUS.OFFLINE) {
@@ -65,8 +75,8 @@ const DeliveryTrackingScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
         <View style={styles.emptyContainer}>
-          <BebaText category="h2" color={Palette.textPrimary}>Go Online</BebaText>
-          <BebaText category="body2" color={Palette.gray500}>
+<BebaText category="h2" color={Palette.textPrimary}>Go Online</BebaText>
+          <BebaText category="body2" color={Palette.textSecondary}>
             Turn on order search to see available deliveries
           </BebaText>
         </View>
@@ -122,9 +132,9 @@ const DeliveryTrackingScreen = ({ navigation }) => {
             <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
               <MapPin size={18} color={Palette.accent} />
             </View>
-            <View style={styles.textContainer}>
+<View style={styles.textContainer}>
               <BebaText category="h4" color={Palette.white}>Navigate</BebaText>
-              <BebaText category="body3" color={Palette.gray400}>GPS</BebaText>
+              <BebaText category="body3" color={Palette.textTertiary}>GPS</BebaText>
             </View>
           </TouchableOpacity>
         </View>
@@ -139,18 +149,18 @@ const DeliveryTrackingScreen = ({ navigation }) => {
         {/* 4. Available Orders List */}
         {isLoadingOrders ? (
           <View style={styles.loadingContainer}>
-            <Loader size={32} color={Palette.primary} />
-            <BebaText category="body2" color={Palette.gray500}>
+<Loader size={32} color={Palette.primary} />
+            <BebaText category="body2" color={Palette.textSecondary}>
               Finding orders near you...
             </BebaText>
           </View>
         ) : availableOrders.length === 0 ? (
           <View style={styles.emptyOrders}>
-            <Box size={48} color={Palette.gray400} />
+            <Box size={48} color={Palette.textTertiary} />
             <BebaText category="h3" color={Palette.textPrimary}>
               No orders available
             </BebaText>
-            <BebaText category="body2" color={Palette.gray500}>
+            <BebaText category="body2" color={Palette.textSecondary}>
               Check back shortly for new deliveries
             </BebaText>
           </View>
@@ -173,7 +183,7 @@ const DeliveryTrackingScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Recent Order Card (Mock) */}
+        {/* Recent Order Card (Mock - should eventually use history hook) */}
         <TouchableOpacity 
           style={styles.recentCard}
           onPress={() => navigation.navigate('TripDetails')}
@@ -185,15 +195,15 @@ const DeliveryTrackingScreen = ({ navigation }) => {
             </View>
           </View>
           
-          <View style={styles.routeContainer}>
+<View style={styles.routeContainer}>
             <View>
               <BebaText category="body4" color={Palette.textPrimary}>Today, 2:30 PM</BebaText>
-              <BebaText category="body3" color={Palette.gray500}>Makola Market</BebaText>
+              <BebaText category="body3" color={Palette.textSecondary}>Makola Market</BebaText>
             </View>
             <ChevronRight color={Palette.textPrimary} size={24} />
             <View style={{ alignItems: 'flex-end' }}>
               <BebaText category="body4" color={Palette.textPrimary}>Today, 2:45 PM</BebaText>
-              <BebaText category="body3" color={Palette.gray500}>Osu Oxford St</BebaText>
+              <BebaText category="body3" color={Palette.textSecondary}>Osu Oxford St</BebaText>
             </View>
           </View>
         </TouchableOpacity>
@@ -257,7 +267,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: Palette.gray100,
+    backgroundColor: Palette.background,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10 
