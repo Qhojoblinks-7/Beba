@@ -26,6 +26,7 @@ const BebaMapView = ({
   const cameraRef = useRef(null);
   const [zoomLevel, setZoomLevel] = useState(14);
   const [showTrafficMode, setShowTrafficMode] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
 
   // Accra default coordinates if no region is provided
   const centerCoordinate = region 
@@ -36,28 +37,32 @@ const BebaMapView = ({
 
   /**
    * handleZoom
-   * Uses setCamera as per v11 documentation to adjust zoom levels.
+   * Uses setStop to adjust zoom level imperatively (v11 API).
    */
   const handleZoom = (delta) => {
     const newZoom = Math.min(Math.max(zoomLevel + delta, 2), 20);
     setZoomLevel(newZoom);
 
-    if (cameraRef.current) {
-      cameraRef.current.setCamera({
+    if (cameraRef.current?.setStop) {
+      cameraRef.current.setStop({
         zoomLevel: newZoom,
-        animationDuration: 300,
+        duration: 300,
       });
     }
   };
 
   /**
    * handleRecenter
-   * Uses flyTo for a smooth transition back to the rider's location.
+   * Fly to actual device location if available, otherwise fallback.
    */
   const handleRecenter = () => {
-    if (cameraRef.current) {
+    const target = currentLocation 
+      ? [currentLocation.longitude, currentLocation.latitude]
+      : centerCoordinate;
+
+    if (cameraRef.current?.flyTo) {
       cameraRef.current.flyTo({
-        center: centerCoordinate,
+        center: target,
         duration: 1000,
       });
       setZoomLevel(16);
@@ -104,28 +109,51 @@ const BebaMapView = ({
           </ShapeSource>
         )}
 
-        {/* Map Overlays for Pickups */}
-        {newPickups.map((pickup) => (
-          <MarkerView
-            key={`pickup-${pickup.id}`}
-            id={`pickup-${pickup.id}`}
-            coordinate={[pickup.longitude, pickup.latitude]}
-          >
-            <View style={styles.tooltipWrapper}>
-              <View style={[styles.pillContainer, { backgroundColor: Palette.primary }]}>
-                <BebaText category="body4" color={Palette.white} style={styles.pillText}>
-                  Pickup • GHS {pickup.price}
-                </BebaText>
-              </View>
-              <View style={[styles.pillArrow, { borderTopColor: Palette.primary }]} />
-            </View>
-          </MarkerView>
-        ))}
+         {/* Map Overlays for Pickups */}
+         {newPickups.map((pickup) => (
+           <MarkerView
+             key={`pickup-${pickup.id}`}
+             id={`pickup-${pickup.id}`}
+             coordinate={[pickup.longitude, pickup.latitude]}
+           >
+             <View style={styles.tooltipWrapper}>
+               <View style={[styles.pillContainer, { backgroundColor: Palette.primary }]}>
+                 <BebaText category="body4" color={Palette.white} style={styles.pillText}>
+                   Pickup • GHS {pickup.price}
+                 </BebaText>
+               </View>
+               <View style={[styles.pillArrow, { borderTopColor: Palette.primary }]} />
+             </View>
+           </MarkerView>
+         ))}
+
+         {/* Map Overlays for Drop-offs */}
+         {activeDropoffs.map((dropoff) => (
+           <MarkerView
+             key={`dropoff-${dropoff.id}`}
+             id={`dropoff-${dropoff.id}`}
+             coordinate={[dropoff.longitude, dropoff.latitude]}
+           >
+             <View style={styles.tooltipWrapper}>
+               <View style={[styles.pillContainer, { backgroundColor: Palette.secondary }]}>
+                 <BebaText category="body4" color={Palette.white} style={styles.pillText}>
+                   Drop-off
+                 </BebaText>
+               </View>
+               <View style={[styles.pillArrow, { borderTopColor: Palette.secondary }]} />
+             </View>
+           </MarkerView>
+         ))}
 
         <UserLocation
           visible={true}
           animated={true}
           renderMode="native"
+          onLocationUpdate={(location) => {
+            // MapLibre returns: { coordinate: [lon, lat], ... }
+            const [longitude, latitude] = location.coordinate;
+            setCurrentLocation({ longitude, latitude });
+          }}
         />
       </Map>
 
@@ -199,11 +227,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 150, 
   },
-  pillContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
+   pillContainer: {
+     paddingHorizontal: 12,
+     paddingVertical: 8,
+     borderRadius: 20,
+     elevation: 4,
+     shadowColor: '#000',
+     shadowOpacity: 0.15,
+     shadowRadius: 6,
+     shadowOffset: { width: 0, height: 2 },
+   },
   pillText: {
     fontWeight: '800',
     fontSize: 11,
