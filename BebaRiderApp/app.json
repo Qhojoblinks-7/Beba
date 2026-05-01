@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -18,6 +18,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Beba needs your location to find deliveries near you and track your route."
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
@@ -27,8 +30,6 @@
       },
       "edgeToEdgeEnabled": false,
       "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ],
@@ -48,7 +49,8 @@
     "extra": {
       "eas": {
         "projectId": "f6649648-7ee0-4b99-ac96-f6bbf722b4f2"
-      }
+      },
+      "mapApiKey": "d912ef6e-9504-4746-bfb3-ecc5db95a634"
     }
   }
 }

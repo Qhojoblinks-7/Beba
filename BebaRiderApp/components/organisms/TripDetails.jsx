@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { ChevronLeft, ChevronDown } from 'lucide-react-native';
 import BebaText from '../atoms/BebaText';
 import BebaButton from '../atoms/BebaButton';
-import BebaMapView from '../organisms/MapView'; // Reusing your map component
+import BebaMapView from './BebaMapView'; // Reusing your map component
 import { Palette, Spacing } from '../../constants/theme';
 
 const TripDetails = ({ navigation, route }) => {

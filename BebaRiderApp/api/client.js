@@ -1,8 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Base URL for Django API
-const BASE_URL = 'http://10.228.153.107:8000'; // Android emulator localhost
+// Base URL for Django API (physical device uses host machine's local network IP)
+const BASE_URL = 'http://10.79.253.107:8000';
 
 // Create axios instance
 const api = axios.create({
